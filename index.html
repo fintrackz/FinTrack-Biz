@@ -14177,10 +14177,13 @@ if (typeof __ftSwitchTab === 'function') {
   /* Every destination is an existing area of the application. */
   /* Scroll a card in the open area into view so the searched feature is visible. */
   function scrollToFeature(id) {
-    setTimeout(function () {
+    var tries = 0;
+    (function attempt() {
       var el = document.getElementById(id);
-      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' });
-    }, 90);
+      if (el && el.scrollIntoView) { el.scrollIntoView({ block: 'center' }); return; }
+      /* A few panels are built a moment after their area opens. */
+      if (++tries < 6) setTimeout(attempt, 150);
+    })();
   }
   function goAdminGroup(group, id) {
     return function () {
@@ -14189,7 +14192,12 @@ if (typeof __ftSwitchTab === 'function') {
       if (id) scrollToFeature(id);
     };
   }
-  function goReferral() { goAdminGroup('application', 'ftReferralCard')(); }
+  function goReferral() {
+    return function () {
+      goAdminGroup('application', 'ftReferralCard')();
+      setTimeout(function () { if (window.ftScrollToReferral) window.ftScrollToReferral(); }, 140);
+    };
+  }
   function goPlatformArea(tabId, id) {
     return function () { goPa(tabId)(); if (id) scrollToFeature(id); };
   }
@@ -14377,10 +14385,11 @@ if (typeof __ftSwitchTab === 'function') {
     var s = F.firstState(r);
     return '<span title="' + F.esc(s.text) + '" aria-label="' + F.esc(s.text) + '" style="cursor:help;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:.78rem;font-weight:900;color:#FFFFFF;background:' + (s.ok ? '#2E8B57' : '#DC2626') + '">' + (s.ok ? '\u2713' : '\u2717') + '</span>';
   };
+  /* Every figure box is centre aligned so the value always sits under the label. */
   F.box = function (label, value, color) {
-    return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px">'
-      + '<div style="font-size:.6rem;font-weight:900;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">' + label + '</div>'
-      + '<div style="font-size:1.02rem;font-weight:900;color:' + (color || 'var(--atmos-navy)') + ';margin-top:4px;overflow-wrap:anywhere">' + value + '</div></div>';
+    return '<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px;text-align:center">'
+      + '<div style="font-size:.6rem;font-weight:900;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;text-align:center">' + label + '</div>'
+      + '<div style="font-size:1.02rem;font-weight:900;color:' + (color || 'var(--atmos-navy)') + ';margin-top:4px;overflow-wrap:anywhere;text-align:center">' + value + '</div></div>';
   };
   F.field = function (label, id, type, value) { return '<div class="form-group"><label>' + label + '</label><input id="' + id + '" type="' + (type || 'text') + '" value="' + F.esc(value == null ? '' : value) + '"></div>'; };
   F.cell = function (content, extra) { return '<td style="padding:8px 10px;vertical-align:top;' + (extra || '') + '">' + content + '</td>'; };
@@ -14389,7 +14398,13 @@ if (typeof __ftSwitchTab === 'function') {
       + '<thead><tr>' + headers.map(function (h) { return '<th style="text-align:left;padding:8px 10px;font-size:.62rem;font-weight:900;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap">' + h + '</th>'; }).join('') + '</tr></thead>'
       + '<tbody>' + (rows.length ? rows.join('') : '<tr><td colspan="' + headers.length + '" style="text-align:center;padding:14px;color:var(--text-muted)">' + empty + '</td></tr>') + '</tbody></table></div>';
   };
-  window.ftScrollToReferral = function () { var card = F.el('ftReferralCard'); if (card && card.scrollIntoView) card.scrollIntoView({ block: 'center' }); };
+  /* Opened from the feature search: make sure the card exists, is filled and is
+     in view, so the searched destination always lands on the referral area. */
+  window.ftScrollToReferral = function () {
+    try { F.mount(); F.renderReferral(); } catch (e) {}
+    var card = F.el('ftReferralCard');
+    if (card && card.scrollIntoView) card.scrollIntoView({ block: 'center' });
+  };
   F.renderReferral = function () {
     var host = F.el('ftReferralCard'); if (!host) return;
     if (!F.admin()) { host.style.display = 'none'; host.innerHTML = ''; host.removeAttribute('data-referral-state'); return; }
@@ -14419,26 +14434,25 @@ if (typeof __ftSwitchTab === 'function') {
       '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">'
       + '<div><h3 style="font-size:1.05rem;font-weight:900;color:var(--accent-purple);margin-bottom:4px"><i class="fa-solid fa-user-group" style="color:var(--accent-purple)"></i> Referral</h3>'
       + '<p style="font-size:.76rem;color:var(--text-muted);margin:0">Share your referral ID with a genuinely new business. Each of your first ' + F.referralCapacity + ' successful referrals earns ' + reward + '% discount credit.</p></div>'
-      + '<span style="background:var(--bg);border:1px solid var(--border);padding:5px 12px;border-radius:20px;font-size:.7rem;font-weight:800;color:var(--text-muted)">Capacity used: ' + used + ' / ' + cap + '</span>'
+      + '<span style="background:var(--bg);border:1px solid var(--border);padding:5px 12px;border-radius:20px;font-size:.7rem;font-weight:800;color:var(--text-muted)">Referrals who subscribed: ' + used + ' of ' + cap + '</span>'
       + '</div>'
       + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0">'
       + F.box('My referral ID', '<span style="font-family:monospace;letter-spacing:1.5px">' + F.esc(r.code) + '</span>', 'var(--accent-purple)')
-      + F.box('Successful referrals', used + ' / ' + cap)
-      + F.box('Remaining capacity', String(Math.max(0, cap - used)))
+      + F.box('Referrals who subscribed', used + ' of ' + cap)
+      + F.box('Referrals still available', String(Math.max(0, cap - used)))
       + F.box('Earned discount balance', (Number(r.rewardBalancePct) || 0) + '%', '#2E8B57')
-      + F.box('First-subscription discount', F.mark(r))
       + '</div>'
       + '<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px;margin-bottom:12px">'
       + '<div style="font-size:.6rem;font-weight:900;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Shareable link</div>'
       + '<p style="margin:6px 0 0;font-size:.8rem;overflow-wrap:anywhere"><a href="' + F.esc(link.href) + '">' + F.esc(link.href) + '</a></p></div>'
-      + '<p style="font-size:.8rem;margin:0 0 10px"><strong>Referred by:</strong> ' + (r.claim ? F.esc(r.claim.businessName) + ' <span style="font-family:monospace">(' + F.esc(r.claim.code) + ')</span>' : 'Not linked to a referring business') + '</p>'
-      + '<p style="font-size:.74rem;color:var(--text-muted);margin:0 0 12px;line-height:1.6">Every successful referral credits ' + reward + '%. Capacity is fixed at ' + F.referralCapacity + ' successful referrals for every plan, so the most you can earn is ' + F.maxBalance() + '%. The referred business receives a one-time ' + F.firstDiscount + '% discount on its first paid subscription, whether that plan runs 30, 90, 182 or 365 days — the largest total discount on a single payment is therefore ' + F.maxTotal() + '%. Credit already earned stays available for a later purchase.</p>'
+      + '<p style="font-size:.8rem;margin:0 0 10px"><strong>Referred by:</strong> ' + (r.claim ? F.esc(r.claim.businessName) + ' <span style="font-family:monospace">(' + F.esc(r.claim.code) + ')</span>' : 'Not referred') + '</p>'
+      + '<p style="font-size:.74rem;color:var(--text-muted);margin:0 0 12px;line-height:1.6">You can earn up to ' + F.referralCapacity + ' successful referrals while your subscription is active, each giving ' + reward + '% discount credit — ' + F.maxBalance() + '% in total. The referred business receives a one-time ' + F.firstDiscount + '% discount on its first paid subscription. The credit you earn is kept for your next subscription.</p>'
       + (canEnter ? '<div style="margin-bottom:14px">' + F.field('Enter the business referral ID within two days of registration', 'ftEnterReferral') + '<button type="button" class="btn-primary" onclick="ftApplyReferral()">Save Referral ID</button></div>' : '<p style="font-size:.76rem;color:var(--text-muted);margin:0 0 14px">Referral entry ' + (r.claim ? 'is locked after linking.' : 'is closed for this account.') + '</p>')
       + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
       + '<h4 style="font-size:.85rem;font-weight:900;color:var(--atmos-navy);margin:0"><i class="fa-solid fa-clock-rotate-left" style="color:var(--accent-purple)"></i> Referral activity</h4>'
       + (entries.length > 5 ? '<span style="font-size:.68rem;font-weight:700;color:var(--text-muted)">Five most recent shown — scroll inside the table for earlier referrals</span>' : '')
       + '</div>'
-      + F.table(['Referred business','Business ID','Registered','Subscription','Successful','Credit earned'], rows, 'No referral activity yet. Share your referral ID or link with a new business to get started.');
+      + F.table(['Referred business','Business ID','Registered','Subscription','Subscribed','Credit earned'], rows, 'No referral activity yet. Share your referral ID or link with a new business to get started.');
   };
   F.bind = async function () {
     var id = F.bid(); if (!F.admin() || !id) { F.account = null; F.accountBid = ''; F.pendingKnown = false; F.renderReferral(); return; }
@@ -14455,7 +14469,7 @@ if (typeof __ftSwitchTab === 'function') {
     } catch (e) { F.bound = ''; if (F.el('ftReferralCard')) F.el('ftReferralCard').textContent = 'Referral information is unavailable. Apply the updated Firebase rules. ' + e.message; }
   };
   F.mount = function () {
-    var reg = F.el('bizRegName'); if (reg && !F.el('bizRegReferralId')) { var field = document.createElement('div'); field.className = 'pa-modal-field'; field.innerHTML = F.field('Referral ID (optional, seven alphanumeric characters)', 'bizRegReferralId'); reg.closest('.pa-modal-field').after(field); var p = new URLSearchParams(location.search).get('ref'); if (/^[A-Z0-9]{7}$/i.test(p || '')) F.el('bizRegReferralId').value = F.code(p); F.el('bizRegReferralId').maxLength = 7; }
+    var reg = F.el('bizRegName'); if (reg && !F.el('bizRegReferralId')) { var field = document.createElement('div'); field.className = 'pa-modal-field'; field.innerHTML = F.field('Referral ID (optional)', 'bizRegReferralId'); reg.closest('.pa-modal-field').after(field); var p = new URLSearchParams(location.search).get('ref'); if (/^[A-Z0-9]{7}$/i.test(p || '')) F.el('bizRegReferralId').value = F.code(p); F.el('bizRegReferralId').maxLength = 7; }
     var profile = Array.from(document.querySelectorAll('#adminTab .app-card')).find(function (c) { var h = c.querySelector('h3'); return h && h.textContent.indexOf('Business Profile Details') !== -1; });
     if (profile && !profile.id) profile.id = 'ftBusinessProfileCard';
     if (!F.el('ftReferralCard')) { if (profile) { var card = document.createElement('div'); card.id = 'ftReferralCard'; card.className = 'app-card'; card.style.borderLeft = '5px solid var(--accent-purple)'; profile.after(card); } }
@@ -14507,7 +14521,10 @@ if (typeof __ftSwitchTab === 'function') {
     if (!F.el('paPayPlan') || !F.el('paPayAmount')) return;
     var pt = (F.el('paPayPricingType') || {}).value || 'normal', def = (paPlans()[pt] || paPlans().normal)[F.el('paPayPlan').value]; if (!def) return;
     var d = F.discount(def.price); F.el('paPayAmount').value = d.final;
-    var box = F.el('ftPayDiscount'); if (box) box.innerHTML = 'Original subscription price: ₹' + d.original.toFixed(2) + '<br>Applied discount: ' + d.pct + '%<br>Discount amount: ₹' + d.amount.toFixed(2) + '<br><strong>Final payable amount: ₹' + d.final.toFixed(2) + '</strong>';
+    /* The one-time first-subscription discount belongs here, inside the applied
+       discount, instead of in a separate card that later becomes idle. */
+    var parts = []; if (d.first > 0) parts.push('one-time first-subscription ' + d.first + '%'); if (d.credits > 0) parts.push('referral credit ' + d.credits + '%');
+    var box = F.el('ftPayDiscount'); if (box) box.innerHTML = 'Original subscription price: ₹' + d.original.toFixed(2) + '<br>Applied discount: ' + d.pct + '%' + (parts.length ? ' (' + parts.join(' + ') + ')' : '') + '<br>Discount amount: ₹' + d.amount.toFixed(2) + '<br><strong>Final payable amount: ₹' + d.final.toFixed(2) + '</strong>';
     refreshPaymentQr();
   };
   var oldOpen = openPaSubmitPayment; openPaSubmitPayment = function () { if (!F.admin()) return; if (!F.pendingKnown || !F.account || F.accountBid !== F.bid()) return alert('Payment and referral status is still loading. Please wait, or apply the updated Firebase rules if it remains unavailable.'); if (hasPendingPayment()) return alert(duplicate); F.mountPayment(); draft = null; F.el('paPayMethod').value = ''; F.el('paPayScreenshot').value = ''; F.el('paPayMobile').value = (getCurrentBizRecord() || {}).adminContact || ''; F.el('ftWhatsAppConfirm').textContent = 'Share the actual image and payment message to platform support on WhatsApp, then confirm delivery. The screenshot is never saved in Firebase.'; oldOpen(); F.el('paSubmitPaymentModal').style.zIndex = '100005'; };
@@ -14586,7 +14603,7 @@ if (typeof __ftSwitchTab === 'function') {
           from.rewardBalancePct = balance + granted; from.referrals = from.referrals || {};
           from.referrals[id] = { businessId:id,businessName:b.name || '',registeredAt:Number(b.referralRegisteredAt),status:'Active',expiry:F.end(b),success:true,rewardPct:granted,qualifiedAt:now };
           r.referralQualifiedAt = now;
-          F.notice(root,fromId,'ref_' + id,'Successful business referral',(b.name || id) + ' activated its first eligible paid subscription. You earned ' + granted + '% referral credit. Available credit: ' + from.rewardBalancePct + '%.',now);
+          F.notice(root,fromId,'ref_' + id,'Referral successful',(b.name || id) + ' subscribed, so your referral is successful. You earned ' + granted + '% referral discount credit for your next subscription. Available credit: ' + from.rewardBalancePct + '%.',now);
           var count = successes+1, milestoneCount = Number(cfg.milestoneCount)||0, milestoneDays = Number(cfg.milestoneDays)||0;
           if (!from.milestoneGranted && milestoneCount > 0 && milestoneCount <= cap && count >= milestoneCount && milestoneDays > 0 && milestoneDays <= 365) {
             var keepPlan = fromBiz.subscriptionPlan, keepDays = fromBiz.approvedDurationDays;
@@ -14708,7 +14725,7 @@ if (typeof __ftSwitchTab === 'function') {
         + '</tr>';
     });
     host.innerHTML = '<p style="font-size:.76rem;color:var(--text-muted);line-height:1.6;margin-bottom:8px">Every business holds one referral ID. A business can count at most ' + F.referralCapacity + ' successful referrals, each earning ' + F.reward() + '% credit for the referring business, so the most any business can earn is ' + F.maxBalance() + '%. The referred business receives the one-time ' + F.firstDiscount + '% discount on its first paid subscription, whichever plan it buys first. "Successful" means the referred business activated a paid subscription while the referring business held an active subscription.</p>'
-      + F.table(['Business','Referral ID','Referred by','Successful','Remaining capacity','Earned balance','First-subscription discount'], rows, 'No referral accounts yet.');
+      + F.table(['Business','Referral ID','Referred by','Referrals who subscribed','Referrals still available','Earned balance','First-subscription discount'], rows, 'No referral accounts yet.');
   };
   var __settingsRender = renderPASettings;
   renderPASettings = function () {
