@@ -14908,22 +14908,24 @@ if (typeof __ftSwitchTab === 'function') {
     return { summary: summary, head: head, tableWrap: tableWrap };
   }
 
-  function ensureToggle() {
-    if (byId('ftProfToggle')) return;
-    var titles = document.querySelectorAll('#hrTab h3');
-    for (var i = 0; i < titles.length; i++) {
-      if (String(titles[i].textContent).indexOf('Staff Profile Overview') < 0) continue;
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.id = 'ftProfToggle';
-      b.title = 'Show attendance details';
-      b.setAttribute('aria-label', 'Show or hide attendance details');
-      b.style.cssText = 'border:1px solid var(--border);background:var(--bg);color:var(--atmos-navy);width:26px;height:26px;border-radius:50%;margin-left:8px;cursor:pointer;vertical-align:middle;line-height:1';
-      b.innerHTML = '<i class="fa-solid fa-chevron-down" id="ftProfToggleIcon"></i>';
-      b.onclick = function () { open = !open; apply(); };
-      titles[i].appendChild(b);
-      return;
-    }
+  /* The arrow sits in the gap between the salary area and the attendance boxes,
+     centred, so it marks the join between the two. */
+  function ensureToggle(summary) {
+    if (byId('ftProfToggleRow')) return;
+    if (!summary || !summary.parentElement) return;
+    var row = document.createElement('div');
+    row.id = 'ftProfToggleRow';
+    row.style.cssText = 'text-align:center;margin:0 0 12px';
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.id = 'ftProfToggle';
+    b.title = 'Show attendance details';
+    b.setAttribute('aria-label', 'Show or hide attendance details');
+    b.style.cssText = 'border:1px solid var(--border);background:var(--bg);color:var(--atmos-navy);width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1';
+    b.innerHTML = '<i class="fa-solid fa-chevron-down" id="ftProfToggleIcon"></i>';
+    b.onclick = function () { open = !open; apply(); };
+    row.appendChild(b);
+    summary.parentElement.insertBefore(row, summary);
   }
 
   /* Eye beside Total Payable: hides and reveals the financial amounts of the
@@ -14977,7 +14979,10 @@ if (typeof __ftSwitchTab === 'function') {
     ensureFinanceEye();
     var b = blocks();
     var showSummary = open && summaryAllowed();
-    if (b.summary) b.summary.style.display = showSummary ? '' : 'none';
+    ensureToggle(b.summary);
+    /* The attendance boxes line up in a row between the salary area and the
+       detailed logs, however narrow the screen is. */
+    if (b.summary) { b.summary.style.gridTemplateColumns = 'repeat(auto-fit, minmax(104px, 1fr))'; b.summary.style.display = showSummary ? '' : 'none'; }
     if (b.tableWrap) b.tableWrap.style.display = open ? '' : 'none';
     if (b.head) b.head.style.display = open ? '' : 'none';
     var icon = byId('ftProfToggleIcon');
