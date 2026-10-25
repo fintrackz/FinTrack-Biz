@@ -802,7 +802,7 @@ html, body { background-color: transparent !important; background-image: none !i
 <div style="background:var(--accent-amber-bg);border:1px solid var(--accent-amber);border-radius:var(--radius-md);padding:12px;margin-bottom:16px;font-size:.78rem;color:#92400e;text-align:left">
 <strong>What happens next?</strong><br>
 1. Pay by UPI QR.<br>
-2. Submit your transaction ID, mobile number, amount and screenshot.<br>
+2. Submit your payment method, mobile number, amount and screenshot.<br>
 3. Your details go straight to platform support on WhatsApp.<br>
 4. The Main Platform Administrator verifies and restores full access.
 </div>
@@ -4024,6 +4024,7 @@ const FIREBASE_CONFIG = {
   /* Runs right after a successful sign-in: bind the business, publish its
      non-secret sign-in routing, then sync. */
   function afterFirebaseLogin(user) {
+    if (window.ftSubscriptionBootGate) window.ftSubscriptionBootGate();
     var chain = Promise.resolve();
     chain = chain.then(function () { restoreLocalDataForActiveBusiness(); });
     chain = chain.then(function () { return syncMembershipSlots(user); })
@@ -9409,92 +9410,7 @@ function paPlans(){
 }
 
 /* FIREBASE RULES TEXT */
-var PA_FIREBASE_RULES = `{
-  "rules": {
-    "atmos_hub_data_v12": { ".read": true, ".write": false },
-    "atmos_signin_index": {
-      ".read": true,
-      "$handle": {
-        ".write": "(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+newData.child('b').val()+'/adminUid').val() === auth.uid && (!data.exists() || data.child('b').val() === newData.child('b').val()))",
-        ".validate": "newData.hasChildren(['b','a','g']) && newData.child('b').isString() && newData.child('a').isString()"
-      }
-    },
-    "atmos_tenant_claims": {
-      ".read": "auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)",
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && auth.uid === $uid && (!data.exists() || data.child('b').val() === newData.child('b').val()) && ((newData.child('r').val() === 'Admin' && root.child('atmos_platform_admin/businesses/'+newData.child('b').val()+'/adminUid').val() === auth.uid) || (newData.child('r').val() === 'Staff' && root.child('businesses/'+newData.child('b').val()+'/accounts/'+newData.child('a').val()+'/role').val() === 'Staff' && root.child('businesses/'+newData.child('b').val()+'/accounts/'+newData.child('a').val()+'/authEmail').val() === auth.token.email)))",
-        ".validate": "newData.hasChildren(['b','a','r']) && newData.child('b').isString() && newData.child('a').isString() && (newData.child('r').val() === 'Admin' || newData.child('r').val() === 'Staff')"
-      }
-    },
-    "businesses": {
-      "$businessId": {
-        ".read": "(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+$businessId+'/adminUid').val() === auth.uid) || (auth != null && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId && root.child('atmos_platform_admin/businesses/'+$businessId+'/blocked').val() !== true && !root.child('atmos_platform_admin/businesses/'+$businessId+'/deletedAt').exists())",
-        ".write": "(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+$businessId+'/adminUid').val() === auth.uid)",
-        "data": {
-          ".write": "auth != null && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId && root.child('atmos_platform_admin/businesses/'+$businessId+'/blocked').val() !== true && !root.child('atmos_platform_admin/businesses/'+$businessId+'/deletedAt').exists()"
-        },
-        "meta": {
-          "facts": { ".write": "auth != null && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId" },
-          "notifications": { "$notifId": { "readBy": { "$member": { ".write": "auth != null && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId" } }, "deletedBy": { "$member": { ".write": "auth != null && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId" } } } }
-        }
-      }
-    },
-    "atmos_notification_receipts": { "$businessId": { "$uid": { ".read": "auth != null && auth.uid === $uid", ".write": "auth != null && auth.uid === $uid && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId" } } },
-    "atmos_platform_admin": {
-      ".read": "auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)",
-      ".write": "auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)",
-      "public": { ".read": true, ".write": "auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)" },
-      "credentials": {
-        ".read": "auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)",
-        ".write": "auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)",
-        ".validate": "newData.hasChildren(['uid','email','name']) && !newData.child('password').exists() && !newData.child('pin').exists() && ((root.child('atmos_platform_bootstrap/uid').exists() && newData.child('uid').val() === root.child('atmos_platform_bootstrap/uid').val() && newData.child('email').val() === root.child('atmos_platform_bootstrap/email').val()) || (!root.child('atmos_platform_bootstrap/uid').exists() && data.child('uid').val() === newData.child('uid').val()))"
-      },
-      "businesses": {
-        "$businessId": {
-          ".read": "(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+$businessId+'/adminUid').val() === auth.uid) || (auth != null && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId) || (auth != null && root.child('atmos_admin_businesses/'+auth.uid+'/b').val() === $businessId)",
-          ".write": "(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+$businessId+'/adminUid').val() === auth.uid) || (auth != null && !data.exists() && root.child('atmos_admin_businesses/'+auth.uid+'/b').val() === $businessId && newData.child('adminUid').val() === auth.uid && newData.child('adminEmail').val() === auth.token.email)",
-          ".validate": "(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (newData.hasChildren(['adminUid','adminEmail','name']) && newData.child('adminUid').val() === auth.uid && newData.child('adminEmail').val() === auth.token.email && (!data.exists() || (newData.child('adminUid').val() === data.child('adminUid').val() && newData.child('trialEndDate').val() === data.child('trialEndDate').val() && newData.child('subscriptionStatus').val() === data.child('subscriptionStatus').val() && newData.child('blocked').val() === data.child('blocked').val() && newData.child('subscriptionExpiry').val() === data.child('subscriptionExpiry').val())))"
-        }
-      },
-      "payments": {
-        ".read": "auth != null && root.child('atmos_platform_admin/credentials/uid').val() === auth.uid",
-        ".write": "auth != null && root.child('atmos_platform_admin/credentials/uid').val() === auth.uid",
-        "$paymentId": {
-          ".read": "auth != null && (root.child('atmos_platform_admin/credentials/uid').val() === auth.uid || root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === data.child('businessId').val())",
-          ".write": "auth != null && (root.child('atmos_platform_admin/credentials/uid').val() === auth.uid || (root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === newData.child('businessId').val() && root.child('atmos_tenant_claims/'+auth.uid+'/r').val() === 'Admin' && (!data.exists() || data.child('businessId').val() === newData.child('businessId').val()) && newData.child('status').val() === 'pending'))",
-          ".validate": "newData.hasChildren(['businessId'])"
-        }
-      },
-      "notifications": {
-        ".read": "auth != null && root.child('atmos_platform_admin/credentials/uid').val() === auth.uid",
-        ".write": "auth != null && root.child('atmos_platform_admin/credentials/uid').val() === auth.uid"
-      },
-      "presence": {
-        "$businessId": {
-          ".read": "auth != null && (root.child('atmos_platform_admin/credentials/uid').val() === auth.uid || root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId)",
-          ".write": "auth != null && (root.child('atmos_platform_admin/credentials/uid').val() === auth.uid || root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId)"
-        }
-      },
-      ".validate": "!data.child('credentials/uid').exists() || (newData.child('credentials/uid').val() === data.child('credentials/uid').val() && newData.child('setupCompleted').val() === true)"
-    },
-    ".read": false,
-    ".write": false,
-    "atmos_platform_bootstrap": {
-      ".read": true,
-      ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('email').val() === auth.token.email && !root.child('atmos_tenant_claims/'+auth.uid).exists() && (!root.child('atmos_platform_admin/credentials/uid').exists() || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)",
-      ".validate": "newData.hasChildren(['uid','email','name','createdAt']) && newData.child('uid').isString() && newData.child('email').isString() && newData.child('name').isString() && newData.child('createdAt').isNumber()"
-    },
-    "atmos_admin_businesses": {
-      ".read": "auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)",
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && auth.uid === $uid && newData.exists() && (!data.exists() || data.child('b').val() === newData.child('b').val()) && newData.child('email').val() === auth.token.email && root.child('atmos_platform_bootstrap/uid').val() !== auth.uid && root.child('atmos_platform_admin/credentials/uid').val() !== auth.uid)",
-        ".validate": "newData.hasChildren(['b','email','createdAt']) && newData.child('b').isString() && newData.child('email').isString() && newData.child('createdAt').isNumber()"
-      }
-    }
-  }
-}`;
+var PA_FIREBASE_RULES = "{\n  \"rules\": {\n    \"atmos_hub_data_v12\": {\n      \".read\": true,\n      \".write\": false\n    },\n    \"atmos_signin_index\": {\n      \".read\": true,\n      \"$handle\": {\n        \".write\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+newData.child('b').val()+'/adminUid').val() === auth.uid && (!data.exists() || data.child('b').val() === newData.child('b').val()))\",\n        \".validate\": \"newData.hasChildren(['b','a','g']) && newData.child('b').isString() && newData.child('a').isString()\"\n      }\n    },\n    \"atmos_tenant_claims\": {\n      \".read\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\",\n      \"$uid\": {\n        \".read\": \"auth != null && auth.uid === $uid\",\n        \".write\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && auth.uid === $uid && (!data.exists() || data.child('b').val() === newData.child('b').val()) && ((newData.child('r').val() === 'Admin' && root.child('atmos_platform_admin/businesses/'+newData.child('b').val()+'/adminUid').val() === auth.uid) || (newData.child('r').val() === 'Staff' && root.child('businesses/'+newData.child('b').val()+'/accounts/'+newData.child('a').val()+'/role').val() === 'Staff' && root.child('businesses/'+newData.child('b').val()+'/accounts/'+newData.child('a').val()+'/authEmail').val() === auth.token.email)))\",\n        \".validate\": \"newData.hasChildren(['b','a','r']) && newData.child('b').isString() && newData.child('a').isString() && (newData.child('r').val() === 'Admin' || newData.child('r').val() === 'Staff')\"\n      }\n    },\n    \"businesses\": {\n      \"$businessId\": {\n        \".read\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+$businessId+'/adminUid').val() === auth.uid) || (auth != null && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId && root.child('atmos_platform_admin/businesses/'+$businessId+'/blocked').val() !== true && !root.child('atmos_platform_admin/businesses/'+$businessId+'/deletedAt').exists())\",\n        \".write\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+$businessId+'/adminUid').val() === auth.uid)\",\n        \"data\": {\n          \".write\": \"auth != null && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId && root.child('atmos_platform_admin/businesses/'+$businessId+'/blocked').val() !== true && !root.child('atmos_platform_admin/businesses/'+$businessId+'/deletedAt').exists()\"\n        },\n        \"meta\": {\n          \"facts\": {\n            \".write\": \"auth != null && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId\"\n          },\n          \"notifications\": {\n            \"$notifId\": {\n              \"readBy\": {\n                \"$member\": {\n                  \".write\": \"auth != null && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId\"\n                }\n              },\n              \"deletedBy\": {\n                \"$member\": {\n                  \".write\": \"auth != null && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId\"\n                }\n              }\n            }\n          }\n        }\n      }\n    },\n    \"atmos_notification_receipts\": {\n      \"$businessId\": {\n        \"$uid\": {\n          \".read\": \"auth != null && auth.uid === $uid\",\n          \".write\": \"auth != null && auth.uid === $uid && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId\"\n        }\n      }\n    },\n    \"atmos_platform_admin\": {\n      \".read\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\",\n      \".write\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\",\n      \"public\": {\n        \".read\": true,\n        \".write\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\"\n      },\n      \"credentials\": {\n        \".read\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\",\n        \".write\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\",\n        \".validate\": \"newData.hasChildren(['uid','email','name']) && !newData.child('password').exists() && !newData.child('pin').exists() && ((root.child('atmos_platform_bootstrap/uid').exists() && newData.child('uid').val() === root.child('atmos_platform_bootstrap/uid').val() && newData.child('email').val() === root.child('atmos_platform_bootstrap/email').val()) || (!root.child('atmos_platform_bootstrap/uid').exists() && data.child('uid').val() === newData.child('uid').val()))\"\n      },\n      \"businesses\": {\n        \"$businessId\": {\n          \".read\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+$businessId+'/adminUid').val() === auth.uid) || (auth != null && root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId) || (auth != null && root.child('atmos_admin_businesses/'+auth.uid+'/b').val() === $businessId)\",\n          \".write\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+$businessId+'/adminUid').val() === auth.uid) || (auth != null && !data.exists() && root.child('atmos_admin_businesses/'+auth.uid+'/b').val() === $businessId && newData.child('adminUid').val() === auth.uid && newData.child('adminEmail').val() === auth.token.email)\",\n          \".validate\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (((auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (newData.hasChildren(['adminUid','adminEmail','name']) && newData.child('adminUid').val() === auth.uid && newData.child('adminEmail').val() === auth.token.email && (!data.exists() || (newData.child('adminUid').val() === data.child('adminUid').val() && newData.child('trialEndDate').val() === data.child('trialEndDate').val() && newData.child('subscriptionStatus').val() === data.child('subscriptionStatus').val() && newData.child('blocked').val() === data.child('blocked').val() && newData.child('subscriptionExpiry').val() === data.child('subscriptionExpiry').val())))) && (!data.exists() || newData.child('referralRegisteredAt').val() === data.child('referralRegisteredAt').val()) && (!newData.child('referralRegisteredAt').exists() || (newData.child('referralRegisteredAt').isNumber() && newData.child('referralRegisteredAt').val() <= now)))\"\n        }\n      },\n      \"payments\": {\n        \".read\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && query.orderByChild === 'businessId' && query.equalTo === root.child('atmos_tenant_claims/'+auth.uid+'/b').val() && root.child('atmos_tenant_claims/'+auth.uid+'/r').val() === 'Admin')\",\n        \".write\": \"auth != null && root.child('atmos_platform_admin/credentials/uid').val() === auth.uid\",\n        \"$paymentId\": {\n          \".read\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+data.child('businessId').val()+'/adminUid').val() === auth.uid)\",\n          \".write\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && !data.exists() && newData.exists() && $paymentId === 'REQ-'+newData.child('businessId').val() && root.child('atmos_platform_admin/businesses/'+newData.child('businessId').val()+'/adminUid').val() === auth.uid && newData.child('status').val() === 'pending')\",\n          \".validate\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (((auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (newData.hasChildren(['businessId','plan','pricingType','paymentMethod','mobile','amount','submittedAt','status','screenshotConfirmed','screenshotDelivery']) && newData.child('paymentMethod').isString() && newData.child('paymentMethod').val().length > 0 && newData.child('paymentMethod').val().length <= 100 && newData.child('mobile').isString() && newData.child('mobile').val().length <= 20 && newData.child('amount').isNumber() && newData.child('amount').val() >= 0 && newData.child('screenshotConfirmed').val() === true && newData.child('screenshotDelivery').val() === 'whatsapp' && !newData.child('screenshotUrl').exists() && newData.child('submittedAt').val() <= now && newData.child('submittedAt').val() >= now-60000)) && newData.child('discountPct').isNumber() && newData.child('discountPct').val() >= 0 && newData.child('discountPct').val() <= 50 && (newData.child('referralFirstDiscount').val() === 0 || (newData.child('referralFirstDiscount').val() === 5 && root.child('atmos_platform_admin/referralAccounts/'+newData.child('businessId').val()+'/claim').exists() && root.child('atmos_platform_admin/referralAccounts/'+newData.child('businessId').val()+'/firstPaymentUsed').val() !== true)) && newData.child('referralCreditsUsed').isNumber() && newData.child('referralCreditsUsed').val() >= 0 && (newData.child('referralCreditsUsed').val() === 0 || newData.child('referralCreditsUsed').val() <= root.child('atmos_platform_admin/referralAccounts/'+newData.child('businessId').val()+'/rewardBalancePct').val()))\"\n        },\n        \".indexOn\": [\n          \"businessId\"\n        ]\n      },\n      \"notifications\": {\n        \".read\": \"auth != null && root.child('atmos_platform_admin/credentials/uid').val() === auth.uid\",\n        \".write\": \"auth != null && root.child('atmos_platform_admin/credentials/uid').val() === auth.uid\"\n      },\n      \"presence\": {\n        \"$businessId\": {\n          \".read\": \"auth != null && (root.child('atmos_platform_admin/credentials/uid').val() === auth.uid || root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId)\",\n          \".write\": \"auth != null && (root.child('atmos_platform_admin/credentials/uid').val() === auth.uid || root.child('atmos_tenant_claims/'+auth.uid+'/b').val() === $businessId)\"\n        }\n      },\n      \".validate\": \"!data.child('credentials/uid').exists() || (newData.child('credentials/uid').val() === data.child('credentials/uid').val() && newData.child('setupCompleted').val() === true)\",\n      \"referralAccounts\": {\n        \".read\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\",\n        \"$businessId\": {\n          \".read\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+$businessId+'/adminUid').val() === auth.uid)\",\n          \"code\": {\n            \".write\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+$businessId+'/adminUid').val() === auth.uid && newData.isString() && (!data.exists() || data.val() === newData.val() || root.child('atmos_platform_admin/referralCodes/'+data.val()+'/businessId').val() !== $businessId))\",\n            \".validate\": \"newData.isString() && newData.val().matches(/^[A-Z0-9]{7}$/) && newData.val().matches(/.*[A-Z].*/) && newData.val().matches(/.*[0-9].*/)\"\n          },\n          \"claim\": {\n            \".write\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+$businessId+'/adminUid').val() === auth.uid && !data.exists() && newData.exists() && !root.child('atmos_platform_admin/referralAccounts/'+$businessId+'/firstPaymentUsed').exists() && root.child('atmos_platform_admin/businesses/'+$businessId+'/referralRegisteredAt').isNumber() && now <= root.child('atmos_platform_admin/businesses/'+$businessId+'/referralRegisteredAt').val()+172800000)\",\n            \".validate\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (newData.hasChildren(['code','businessId','businessName','linkedAt']) && newData.child('code').isString() && newData.child('code').val().matches(/^[A-Z0-9]{7}$/) && root.child('atmos_platform_admin/referralCodes/'+newData.child('code').val()+'/businessId').val() === newData.child('businessId').val() && newData.child('businessId').val() !== $businessId && newData.child('linkedAt').isNumber() && newData.child('linkedAt').val() <= now && newData.child('linkedAt').val() >= now-60000)\"\n          }\n        }\n      },\n      \"referralCodes\": {\n        \"$code\": {\n          \".read\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && (root.child('atmos_tenant_claims/'+auth.uid+'/r').val() === 'Admin' || root.child('atmos_admin_businesses/'+auth.uid+'/b').exists()))\",\n          \".write\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && newData.exists() && (!data.exists() || data.child('businessId').val() === newData.child('businessId').val()) && root.child('atmos_platform_admin/businesses/'+newData.child('businessId').val()+'/adminUid').val() === auth.uid && root.child('atmos_platform_admin/referralAccounts/'+newData.child('businessId').val()+'/code').val() === $code)\",\n          \".validate\": \"$code.matches(/^[A-Z0-9]{7}$/) && newData.hasChildren(['businessId','businessName']) && newData.child('businessId').isString() && newData.child('businessName').isString()\",\n          \"businessId\": {},\n          \"businessName\": {},\n          \"$other\": {\n            \".validate\": false\n          }\n        }\n      },\n      \"referralIntroductions\": {\n        \"$businessId\": {\n          \".read\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && root.child('atmos_platform_admin/businesses/'+$businessId+'/adminUid').val() === auth.uid)\",\n          \"$referredId\": {\n            \".write\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && newData.exists() && root.child('atmos_platform_admin/businesses/'+$referredId+'/adminUid').val() === auth.uid && root.child('atmos_platform_admin/referralAccounts/'+$referredId+'/claim/businessId').val() === $businessId)\",\n            \".validate\": \"newData.hasChildren(['businessId','businessName','code','registeredAt']) && newData.child('businessId').val() === $referredId && newData.child('businessName').val() === root.child('atmos_platform_admin/businesses/'+$referredId+'/name').val() && newData.child('code').val() === root.child('atmos_platform_admin/referralAccounts/'+$referredId+'/claim/code').val() && newData.child('registeredAt').val() === root.child('atmos_platform_admin/businesses/'+$referredId+'/referralRegisteredAt').val()\",\n            \"businessId\": {},\n            \"businessName\": {},\n            \"code\": {},\n            \"registeredAt\": {},\n            \"$other\": {\n              \".validate\": false\n            }\n          }\n        }\n      },\n      \"referralConfig\": {\n        \".read\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\",\n        \".write\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\"\n      },\n      \"paymentHistory\": {\n        \".read\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\",\n        \".write\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\"\n      },\n      \"subscriptionHistory\": {\n        \".read\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\",\n        \".write\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\"\n      }\n    },\n    \".read\": false,\n    \".write\": false,\n    \"atmos_platform_bootstrap\": {\n      \".read\": true,\n      \".write\": \"auth != null && !data.exists() && newData.child('uid').val() === auth.uid && newData.child('email').val() === auth.token.email && !root.child('atmos_tenant_claims/'+auth.uid).exists() && (!root.child('atmos_platform_admin/credentials/uid').exists() || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\",\n      \".validate\": \"newData.hasChildren(['uid','email','name','createdAt']) && newData.child('uid').isString() && newData.child('email').isString() && newData.child('name').isString() && newData.child('createdAt').isNumber()\"\n    },\n    \"atmos_admin_businesses\": {\n      \".read\": \"auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)\",\n      \"$uid\": {\n        \".read\": \"auth != null && auth.uid === $uid\",\n        \".write\": \"(auth != null && (root.child('atmos_platform_bootstrap/uid').val() === auth.uid || root.child('atmos_platform_admin/credentials/uid').val() === auth.uid)) || (auth != null && auth.uid === $uid && newData.exists() && (!data.exists() || data.child('b').val() === newData.child('b').val()) && newData.child('email').val() === auth.token.email && root.child('atmos_platform_bootstrap/uid').val() !== auth.uid && root.child('atmos_platform_admin/credentials/uid').val() !== auth.uid)\",\n        \".validate\": \"newData.hasChildren(['b','email','createdAt']) && newData.child('b').isString() && newData.child('email').isString() && newData.child('createdAt').isNumber()\"\n      }\n    }\n  }\n}";
 
 /* SCOPED PLATFORM ACCESS
    Only the Main Platform Administrator reads the shared registry. Everyone else
@@ -9742,8 +9658,9 @@ function listenOwnBusinessRecord() {
       if (!platformData.businesses) platformData.businesses = {};
       platformData.businesses[authBusinessId] = v;
       try { renderBizSubscriptionCard(); checkSubscriptionLock(); } catch (e) {}
+      if (window.ftSubscriptionReady) window.ftSubscriptionReady();
       try { adoptRegisteredBusinessName(v); } catch (e) {}
-    }, function () {});
+    }, function () { if (window.ftSubscriptionCheckFailed) window.ftSubscriptionCheckFailed(); });
     scopedPlatformRefs.push(ref);
   } catch (e) {}
 }
@@ -11960,7 +11877,7 @@ async function submitBusinessRegistration() {
       if (route && route.b !== bizId) throw new Error('This email or mobile is already linked to another business. Use its login or enter a different mobile number.');
     });
     var branding = getPlatformBranding();
-    var newRecord = { name: name, category: category === 'Custom' ? customCategory : category, motto: motto, adminName: adminName, adminContact: mobile, adminEmail: email, adminUid: identity.uid, joiningDate: getISTDateStr(), staffCount: 0, blocked: false, subscriptionStatus: 'trial', trialEndDate: Date.parse(getISTDateStr() + 'T00:00:00+05:30') + (branding.trialDays * 86400000), subscriptionExpiry: '', lastActivity: Date.now(), isCurrentBusiness: false };
+    var newRecord = { name: name, category: category === 'Custom' ? customCategory : category, motto: motto, adminName: adminName, adminContact: mobile, adminEmail: email, adminUid: identity.uid, joiningDate: getISTDateStr(), referralRegisteredAt: firebase.database.ServerValue.TIMESTAMP, staffCount: 0, blocked: false, subscriptionStatus: 'trial', trialEndDate: Date.parse(getISTDateStr() + 'T00:00:00+05:30') + (branding.trialDays * 86400000), subscriptionExpiry: '', lastActivity: Date.now(), isCurrentBusiness: false };
     var registryResult = await firebase.database().ref('atmos_platform_admin/businesses/' + bizId).transaction(function (current) {
       if (current) return;
       return newRecord;
@@ -11984,6 +11901,7 @@ async function submitBusinessRegistration() {
     }, undefined, false);
     if (!dataResult.snapshot.exists()) throw new Error('Business data could not be saved. Retry with the same email and password.');
     /* Existing business activity, balances, staff, and trial dates are not replaced. */
+    if (window.ftReferralRegistration) await window.ftReferralRegistration(bizId, record, (document.getElementById('bizRegReferralId') || {}).value || '');
     appData = convertLegacyData(dataResult.snapshot.val());
     await writeTenantClaim(identity.uid, bizId, 'ADM-001', 'Admin');
     await syncMembershipSlots(appData.users.find(function (user) { return user.role === 'Admin'; }));
@@ -13199,6 +13117,7 @@ function upiPayUri(amount) {
     var adminTab = document.getElementById('adminTab');
     if (!adminTab) return;
     var card = document.getElementById('bizSubCard');
+    var __newCard = !card;
     if (!card) {
       card = document.createElement('div');
       card.id = 'bizSubCard';
@@ -13529,7 +13448,7 @@ setInterval(function () {
 
 document.addEventListener('submit', function (e) {
   var m = null; try { m = ftSubModel(); } catch (e) {}
-  if (m && m.mode === 'blocked') { e.preventDefault(); e.stopPropagation(); ftRenderAccessLock(); }
+  if (m && m.mode === 'blocked' && !(e.target.closest && e.target.closest('#paSubmitPaymentModal,#ftNotifOverlay'))) { e.preventDefault(); e.stopPropagation(); ftRenderAccessLock(); }
 }, true);
 
 function toggleIntroOffer() {
@@ -14356,5 +14275,397 @@ if (typeof __ftSwitchTab === 'function') {
 })();
 </script>
 
+
+<!-- BEGIN FINTRACK REQUESTED SUBSCRIPTION / PAYMENT / REFERRAL UPDATE -->
+<script id="ftRequestedUpdate0">
+
+/* FINTRACK REQUESTED UPDATE: isolated referral accounts; no operational data writes. */
+(function () {
+  var F = window.FTRequestedUpdate = {};
+  F.day = 86400000;
+  F.el = function (id) { return document.getElementById(id); };
+  F.esc = function (v) { var n = document.createElement('span'); n.textContent = String(v == null ? '' : v); return n.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;'); };
+  F.admin = function () { return !!(currentUser && currentUser.role === 'Admin' && !platformAdminUser); };
+  F.bid = function () { return getCurrentPlatformBusinessId() || ''; };
+  F.ref = function (path) { return firebase.database().ref('atmos_platform_admin/' + path); };
+  F.code = function (v) { return String(v || '').trim().toUpperCase(); };
+  F.planDays = { '1month': 30, '3months': 90, '6months': 182, '1year': 365, '3month': 90, '6month': 182, '12months': 365 };
+  F.planForDays = function (days) { var keys = Object.keys(paPlans().normal); return keys.find(function (k) { return F.daysFor(k) === days; }) || keys[0]; };
+  F.daysFor = function (plan) { var p = paPlans().normal[plan] || {}; return F.planDays[plan] || ({1:30,3:90,6:182,12:365}[p.durationMonths]) || 30; };
+  F.end = function (b) { return b && b.subscriptionExpiry ? Date.parse(b.subscriptionExpiry + 'T23:59:59.999+05:30') : 0; };
+  F.limit = function (b, now) { return b && !b.blocked && b.subscriptionStatus === 'active' && F.end(b) >= now ? ((Number(b.approvedDurationDays) || F.daysFor(b.subscriptionPlan)) >= 182 ? 4 : 3) : 0; };
+  F.config = function () { return platformData.referralConfig || (platformData.publicInfo || {}).referralConfig || { rewardPct: 5, milestoneCount: 0, milestoneDays: 0 }; };
+  F.account = null; F.accountBid = ''; F.introductions = {}; F.pendingKnown = false; F.bound = ''; F.bindings = [];
+  F.failure = function (error) { alert('This change was not saved. ' + (error && error.message || error) + '\nIf Firebase reports permission denied, apply the updated Firebase rules provided with this file.'); };
+  F.randomCode = function () { var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', out; do { var a = new Uint8Array(14); crypto.getRandomValues(a); out = Array.from(a).filter(function (n) { return n < 252; }).slice(0,7).map(function (n) { return chars[n % 36]; }).join(''); } while (out.length !== 7 || !/[A-Z]/.test(out) || !/[0-9]/.test(out)); return out; };
+  F.ensureAccount = async function (id, business) {
+    var ref = F.ref('referralAccounts/' + id);
+    for (var i = 0; i < 8; i++) {
+      var prior = (await ref.once('value')).val();
+      if (prior && prior.code) { var existing = (await F.ref('referralCodes/' + prior.code).once('value')).val(); if (existing && existing.businessId === id) return prior; }
+      var code = F.randomCode();
+      if ((await F.ref('referralCodes/' + code).once('value')).exists()) continue;
+      var result = await ref.child('code').transaction(function (r) { if (r && r !== (prior && prior.code)) return; return code; }, undefined, false);
+      if (!result.committed) continue;
+      var reserved = await F.ref('referralCodes/' + code).transaction(function (r) { if (r && r.businessId !== id) return; return r || { businessId: id, businessName: business.name || '' }; }, undefined, false);
+      if (reserved.committed) return Object.assign({}, prior || {}, { code: code });
+    }
+    throw new Error('Could not reserve a unique referral ID. Please retry.');
+  };
+  F.link = async function (id, business, value) {
+    var code = F.code(value); if (!/^[A-Z0-9]{7}$/.test(code)) throw new Error('Enter a valid seven-character referral ID.');
+    if (!business.referralRegisteredAt || Date.now() > Number(business.referralRegisteredAt) + 2 * F.day) throw new Error('Referral entry is available only for two days after a genuinely new registration.');
+    var owner = (await F.ref('referralCodes/' + code).once('value')).val();
+    if (!owner) throw new Error('Referral ID not found.');
+    if (owner.businessId === id) throw new Error('A business cannot refer itself.');
+    var result = await F.ref('referralAccounts/' + id + '/claim').transaction(function (r) { if (r) return; return { code: code, businessId: owner.businessId, businessName: owner.businessName || '', linkedAt: firebase.database.ServerValue.TIMESTAMP }; }, undefined, false);
+    if (!result.committed && (!result.snapshot.val() || result.snapshot.val().code !== code)) throw new Error('The referring business has already been set and cannot be changed.');
+    await F.ref('referralIntroductions/' + owner.businessId + '/' + id).set({businessId:id,businessName:business.name || '',code:code,registeredAt:Number(business.referralRegisteredAt)});
+  };
+  window.ftReferralRegistration = async function (id, business, code) { await F.ensureAccount(id, business); if (F.code(code)) await F.link(id, business, code); };
+  window.ftApplyReferral = async function () { if (!F.admin()) return; try { await F.link(F.bid(), getCurrentBizRecord(), F.el('ftEnterReferral').value); alert('Referral saved. The first eligible paid subscription receives the one-time 5% discount.'); } catch (e) { F.failure(e); } };
+  F.discount = function (price) {
+    var r = F.account || {}, first = r.claim && !r.firstPaymentUsed ? 5 : 0;
+    var credits = Math.max(0, Number(r.rewardBalancePct) || 0), pct = Math.min(50, first + credits);
+    price = Math.max(0, Number(price) || 0); var amount = Math.round(price * pct) / 100;
+    return { original: price, pct: pct, amount: amount, final: Math.max(0, Math.round((price - amount) * 100) / 100), first: first, credits: Math.max(0, pct - first) };
+  };
+  F.field = function (label, id, type, value) { return '<div class="form-group"><label>' + label + '</label><input id="' + id + '" type="' + (type || 'text') + '" value="' + F.esc(value == null ? '' : value) + '"></div>'; };
+  F.renderReferral = function () {
+    var host = F.el('ftReferralCard'); if (!host) return;
+    if (!F.admin()) { host.style.display = 'none'; host.innerHTML = ''; host.removeAttribute('data-referral-state'); return; }
+    host.style.display = adminGroup === 'application' ? '' : 'none';
+    var r = F.account, b = getCurrentBizRecord() || {};
+    if (!r || F.accountBid !== F.bid()) { host.removeAttribute('data-referral-state'); host.innerHTML = '<h3>Referral</h3><p>Loading referral information...</p>'; return; }
+    var signature = JSON.stringify([r,F.introductions,b.name,b.displayId,b.subscriptionStatus,b.subscriptionExpiry,b.approvedDurationDays,adminGroup,Date.now() <= Number(b.referralRegisteredAt || 0) + 2 * F.day]);
+    if (host.getAttribute('data-referral-state') === signature) return;
+    host.setAttribute('data-referral-state',signature);
+    var link = new URL(location.href); link.search = ''; link.hash = ''; link.searchParams.set('ref', r.code);
+    var pendingIntroductions = {}; Object.keys(F.introductions || {}).forEach(function (id) { pendingIntroductions[id] = Object.assign({status:'Awaiting eligible paid subscription',success:false,rewardPct:0},F.introductions[id]); });
+    var entries = Object.values(Object.assign({},pendingIntroductions,r.referrals || {})), used = entries.filter(function (x) { return x.success; }).length, cap = F.limit(b, Date.now());
+    var canEnter = !r.claim && !r.firstPaymentUsed && b.referralRegisteredAt && Date.now() <= Number(b.referralRegisteredAt) + 2 * F.day;
+    host.innerHTML = '<h3 style="margin-bottom:10px">Referral</h3><p><strong>My referral ID:</strong> ' + F.esc(r.code) + '</p><p style="overflow-wrap:anywhere"><strong>Shareable link:</strong> <a href="' + F.esc(link.href) + '">' + F.esc(link.href) + '</a></p>'
+      + '<p><strong>Referred by:</strong> ' + (r.claim ? F.esc(r.claim.businessName) + ' (' + F.esc(r.claim.businessId) + ') — ' + F.esc(r.claim.code) : 'Not referred') + '</p>'
+      + '<p><strong>Successful referrals:</strong> ' + used + ' / ' + cap + ' · <strong>Remaining capacity:</strong> ' + Math.max(0, cap - used) + '</p>'
+      + '<p><strong>Earned discount balance:</strong> ' + (Number(r.rewardBalancePct) || 0) + '% · <strong>First-subscription discount:</strong> ' + (r.claim && !r.firstPaymentUsed ? '5%' : '0%') + '</p>'
+      + '<p style="font-size:.76rem;color:var(--text-muted);margin:8px 0">Combined discounts are capped at 50% per payment. Only new businesses with an approved paid subscription qualify; an active paid plan permits three referrals (30/90 days) or four (182/365 days). Credits already earned remain available for a later purchase.</p>'
+      + (canEnter ? F.field('Enter the business referral ID within two days of registration', 'ftEnterReferral') + '<button type="button" class="btn-primary" onclick="ftApplyReferral()">Save Referral ID</button>' : '<p style="font-size:.76rem">Referral entry ' + (r.claim ? 'is locked after linking.' : 'is closed for this account.') + '</p>')
+      + '<div style="overflow:auto;margin-top:12px"><table><thead><tr><th>Referring business / ID</th><th>Referred business / ID</th><th>Referral ID</th><th>Registered</th><th>Subscription</th><th>Successful</th><th>Benefit earned</th></tr></thead><tbody>'
+      + (entries.length ? entries.map(function (x) { return '<tr><td>' + F.esc(b.name) + '<br>' + F.esc(b.displayId || F.bid()) + '</td><td>' + F.esc(x.businessName) + '<br>' + F.esc(x.businessId) + '</td><td>' + F.esc(r.code) + '</td><td>' + F.esc(new Date(x.registeredAt).toLocaleDateString('en-IN')) + '</td><td>' + F.esc(x.expiry && Date.now() > x.expiry ? 'Expired' : x.status) + '</td><td>' + (x.success ? 'Yes' : 'No') + '</td><td>' + (Number(x.rewardPct) || 0) + '%</td></tr>'; }).join('') : '<tr><td colspan="7">No eligible paid referrals yet.</td></tr>') + '</tbody></table></div>';
+  };
+  F.bind = async function () {
+    var id = F.bid(); if (!F.admin() || !id) { F.account = null; F.accountBid = ''; F.pendingKnown = false; F.renderReferral(); return; }
+    if (F.bound === id) return;
+    F.bindings.forEach(function (r) { r.off(); }); F.bindings = []; F.bound = id; F.account = null; F.accountBid = ''; F.pendingKnown = false;
+    var pay = F.ref('payments').orderByChild('businessId').equalTo(id);
+    pay.on('value', function (s) { if (!F.admin() || F.bid() !== id) return; platformData.payments = s.val() || {}; F.pendingKnown = true; renderBizSubscriptionCard(); ftRenderAccessLock(); }, function () { F.pendingKnown = false; }); F.bindings.push(pay);
+    F.introductions = {}; var introductions = F.ref('referralIntroductions/' + id); introductions.on('value',function(s){if(F.admin() && F.bid()===id){F.introductions=s.val()||{};F.renderReferral();}}); F.bindings.push(introductions);
+    try {
+      await F.ensureAccount(id, getCurrentBizRecord() || {});
+      if (!F.admin() || F.bid() !== id) return;
+      var ref = F.ref('referralAccounts/' + id);
+      ref.on('value', function (s) { if (!F.admin() || F.bid() !== id) return; F.account = s.val(); F.accountBid = id; F.renderReferral(); syncPayAmount(); }, function (e) { F.el('ftReferralCard').textContent = 'Referral information is unavailable. Apply the updated Firebase rules. ' + e.message; }); F.bindings.push(ref);
+    } catch (e) { F.bound = ''; if (F.el('ftReferralCard')) F.el('ftReferralCard').textContent = 'Referral information is unavailable. Apply the updated Firebase rules. ' + e.message; }
+  };
+  F.mount = function () {
+    var reg = F.el('bizRegName'); if (reg && !F.el('bizRegReferralId')) { var field = document.createElement('div'); field.className = 'pa-modal-field'; field.innerHTML = F.field('Referral ID (optional, seven alphanumeric characters)', 'bizRegReferralId'); reg.closest('.pa-modal-field').after(field); var p = new URLSearchParams(location.search).get('ref'); if (/^[A-Z0-9]{7}$/i.test(p || '')) F.el('bizRegReferralId').value = F.code(p); F.el('bizRegReferralId').maxLength = 7; }
+    if (!F.el('ftReferralCard')) { var profile = Array.from(document.querySelectorAll('#adminTab .app-card')).find(function (c) { var h = c.querySelector('h3'); return h && h.textContent.indexOf('Business Profile Details') !== -1; }); if (profile) { var card = document.createElement('div'); card.id = 'ftReferralCard'; card.className = 'app-card'; card.style.borderLeft = '5px solid var(--accent-purple)'; profile.after(card); } }
+    F.renderReferral();
+  };
+  var group = admCardGroup; admCardGroup = function (c) { return c && c.id === 'ftReferralCard' ? 'application' : group(c); };
+  var groups = applyAdminGroups; applyAdminGroups = function () { groups(); F.renderReferral(); };
+  var originalCard = renderBizSubscriptionCard;
+  renderBizSubscriptionCard = function () { originalCard(); F.mount(); F.bind(); };
+  var release = releaseScopedPlatformRefs; releaseScopedPlatformRefs = function () { F.bindings.forEach(function (r) { r.off(); }); F.bindings = []; F.bound = ''; F.account = null; F.accountBid = ''; F.pendingKnown = false; release(); F.renderReferral(); };
+  F.mount();
+})();
+
+</script>
+<script id="ftRequestedUpdate1">
+
+/* FINTRACK REQUESTED UPDATE: device-only screenshots and durable single pending request. */
+(function () {
+  var F = window.FTRequestedUpdate, draft = null, busy = false;
+  var duplicate = 'You have already submitted a payment-verification request. Kindly wait for the platform administrator to review and approve or reject your request.';
+  F.pendingMessage = duplicate;
+  F.methodSuggestions = function () {
+    var inp = F.el('paPayMethod'), list = F.el('ftPayMethodSuggestions'); if (!inp || !list) return;
+    var q = inp.value.toLowerCase(); list.innerHTML = '';
+    ['Google Pay','PhonePe','Paytm','BHIM UPI','Amazon Pay','CRED UPI','WhatsApp Pay','Bank Transfer','Net Banking','Cash Deposit','Other UPI App'].filter(function (m) { return !q || m.toLowerCase().indexOf(q) >= 0; }).forEach(function (m) { var b = document.createElement('button'); b.type = 'button'; b.textContent = m; b.style.cssText = 'display:block;width:100%;text-align:left;background:var(--card-bg);color:var(--text-main)'; b.onmousedown = function (e) { e.preventDefault(); inp.value = m; list.hidden = true; }; b.onclick = function () { inp.value = m; list.hidden = true; }; list.appendChild(b); }); list.hidden = false;
+  };
+  F.mountPayment = function () {
+    var plan = F.el('paPayPlan'); if (plan) { var placeholder = plan.querySelector('option[value=""]'); if (placeholder) placeholder.remove(); if (!plan.value) plan.value = Object.keys(paPlans().normal).find(function (k) { return F.daysFor(k) === 30; }) || plan.options[0].value; }
+    var old = F.el('paPayTxnId'); if (old) { old.id = 'paPayMethod'; old.placeholder = 'Search a payment app or enter a custom method'; old.required = true; old.autocomplete = 'off'; var wrap = old.closest('.form-group'); wrap.querySelector('label').textContent = 'Payment Method *'; wrap.style.position = 'relative'; var list = document.createElement('div'); list.id = 'ftPayMethodSuggestions'; list.hidden = true; list.style.cssText = 'position:absolute;top:100%;left:0;right:0;z-index:4;max-height:180px;overflow:auto;box-shadow:var(--shadow);background:var(--card-bg)'; wrap.appendChild(list); old.oninput = F.methodSuggestions; old.onfocus = F.methodSuggestions; old.onblur = function () { setTimeout(function () { list.hidden = true; }, 150); }; }
+    ['paPayMobile','paPayScreenshot'].forEach(function (id) { var el = F.el(id); if (!el) return; el.required = true; el.closest('.form-group').querySelector('label').textContent = id === 'paPayMobile' ? 'Payment mobile number *' : 'Payment screenshot *'; });
+    if (!F.el('ftPayDiscount')) { var d = document.createElement('div'); d.id = 'ftPayDiscount'; d.style.cssText = 'padding:12px;margin-bottom:12px;background:var(--accent-green-bg);border-radius:var(--radius-md)'; F.el('paPayAmount').closest('.form-group').before(d); }
+    if (!F.el('ftWhatsAppConfirm')) { var info = document.createElement('div'); info.id = 'ftWhatsAppConfirm'; info.style.cssText = 'font-size:.8rem;margin:12px 0;line-height:1.5'; info.textContent = 'Your screenshot stays on this device. Share the actual image to the platform support WhatsApp contact; it is never uploaded to Firebase. A chat link cannot attach an image automatically.'; F.el('paPayScreenshot').closest('.form-group').after(info); }
+  };
+  syncPayAmount = function () {
+    if (!F.el('paPayPlan') || !F.el('paPayAmount')) return;
+    var pt = (F.el('paPayPricingType') || {}).value || 'normal', def = (paPlans()[pt] || paPlans().normal)[F.el('paPayPlan').value]; if (!def) return;
+    var d = F.discount(def.price); F.el('paPayAmount').value = d.final;
+    var box = F.el('ftPayDiscount'); if (box) box.innerHTML = 'Original subscription price: ₹' + d.original.toFixed(2) + '<br>Applied discount: ' + d.pct + '%<br>Discount amount: ₹' + d.amount.toFixed(2) + '<br><strong>Final payable amount: ₹' + d.final.toFixed(2) + '</strong>';
+    refreshPaymentQr();
+  };
+  var oldOpen = openPaSubmitPayment; openPaSubmitPayment = function () { if (!F.admin()) return; if (!F.pendingKnown || !F.account || F.accountBid !== F.bid()) return alert('Payment and referral status is still loading. Please wait, or apply the updated Firebase rules if it remains unavailable.'); if (hasPendingPayment()) return alert(duplicate); F.mountPayment(); draft = null; F.el('paPayMethod').value = ''; F.el('paPayScreenshot').value = ''; F.el('paPayMobile').value = (getCurrentBizRecord() || {}).adminContact || ''; F.el('ftWhatsAppConfirm').textContent = 'Share the actual image and payment message to platform support on WhatsApp, then confirm delivery. The screenshot is never saved in Firebase.'; oldOpen(); F.el('paSubmitPaymentModal').style.zIndex = '100005'; };
+  submitPayment = async function () {
+    if (!F.admin() || busy) return; busy = true;
+    var button = document.querySelector('[onclick="submitPayment()"]'); if (button) button.disabled = true;
+    try {
+      var plan = F.el('paPayPlan').value, pt = F.el('paPayPricingType').value || 'normal', method = F.el('paPayMethod').value.trim(), mobile = F.el('paPayMobile').value.trim(), file = F.el('paPayScreenshot').files[0];
+      if (!plan || !method || !/^\d{10}$/.test(mobile.replace(/\D/g,'')) || !file || !/^image\//.test(file.type)) throw new Error('Select a plan, enter your payment method and valid 10-digit mobile number, and attach an image screenshot.');
+      if (hasPendingPayment()) throw new Error(duplicate);
+      var id = F.bid();
+      var discount = F.discount((paPlans()[pt] || paPlans().normal)[plan].price), b = getCurrentBizRecord() || {};
+      draft = { businessId:id,businessName:b.name||'',businessDisplayId:b.displayId||'',plan:plan,pricingType:pt,paymentMethod:method,mobile:mobile,amount:discount.final,originalAmount:discount.original,discountPct:discount.pct,discountAmount:discount.amount,referralFirstDiscount:discount.first,referralCreditsUsed:discount.credits,screenshotDelivery:'whatsapp',screenshotConfirmed:false,status:'pending',submittedAt:firebase.database.ServerValue.TIMESTAMP };
+      var msg = 'PAYMENT VERIFICATION REQUEST\nBusiness: ' + (b.name || '') + '\nBusiness ID: ' + (b.displayId || id) + '\nPlan: ' + (PLAN_LABELS[plan] || plan) + '\nPricing: ' + pt + '\nPayment Method: ' + method + '\nMobile: ' + mobile + '\nOriginal price: Rs ' + discount.original.toFixed(2) + '\nDiscount: ' + discount.pct + '% (Rs ' + discount.amount.toFixed(2) + ')\nAmount paid: Rs ' + discount.final.toFixed(2) + '\nPlease verify the attached payment screenshot and activate my subscription.';
+      var box = F.el('ftWhatsAppConfirm'); box.innerHTML = '';
+      var canShare = navigator.share && navigator.canShare && navigator.canShare({files:[file]});
+      if (canShare) { try { await navigator.share({files:[file],text:msg,title:'Payment verification'}); } catch (shareError) { if (shareError.name === 'AbortError') throw shareError; canShare = false; } }
+      var chat = document.createElement('a'); chat.href = 'https://wa.me/' + SUPPORT_WHATSAPP + '?text=' + encodeURIComponent(msg); chat.target = '_blank'; chat.rel = 'noopener'; chat.textContent = 'Open platform support on WhatsApp'; box.appendChild(chat);
+      var p = document.createElement('p'); p.textContent = canShare ? 'The device share sheet has closed. Only confirm after sending the image and message to the platform support contact on WhatsApp.' : 'This browser cannot share an image directly. Open WhatsApp above, attach the selected screenshot manually, and send it with the payment message. No image has been sent automatically.'; box.appendChild(p);
+      var label = document.createElement('label'), checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.style.width = 'auto'; label.style.cssText = 'text-transform:none;font-size:.8rem;margin:10px 0'; label.appendChild(checkbox); label.appendChild(document.createTextNode(' I sent the actual image and payment message to platform support on WhatsApp.')); box.appendChild(label);
+      var confirmButton = document.createElement('button'); confirmButton.type = 'button'; confirmButton.className = 'btn-primary'; confirmButton.textContent = 'Confirm WhatsApp delivery and save verification request'; confirmButton.onclick = async function () {
+        if (!checkbox.checked) return alert('Please send the actual screenshot and message to platform support first.'); if (!draft || draft.businessId !== F.bid() || !F.admin()) return;
+        confirmButton.disabled = true;
+        try { draft.screenshotConfirmed = true; var result = await F.ref('payments/REQ-' + draft.businessId).transaction(function (p) { if (p) return; return draft; }, undefined, false); if (!result.committed) throw new Error(duplicate); platformData.payments = platformData.payments || {}; platformData.payments['REQ-' + draft.businessId] = result.snapshot.val(); draft = null; closePaSubmitPayment(); F.el('paPayScreenshot').value = ''; renderBizSubscriptionCard(); ftRenderAccessLock(); alert('Payment submitted successfully. Waiting for verification and approval from the platform administrator.'); } catch (e) { F.failure(e); } finally { confirmButton.disabled = false; }
+      }; box.appendChild(confirmButton);
+    } catch (e) { draft = null; if (e.name === 'AbortError') alert('Sharing was cancelled. No request was submitted and no screenshot was stored.'); else F.failure(e); }
+    finally { busy = false; if (button) button.disabled = false; }
+  };
+  /* Retired screenshot/base64 path cannot be invoked from an old control. */
+  doSubmitPayment = function () { return submitPayment(); };
+  var oldCard = buildBizSubCardHtml; buildBizSubCardHtml = function () { var html = oldCard(); if (hasPendingPayment()) html = html.replace(/<button class="btn-admin" onclick="openPaSubmitPayment\(\)"[\s\S]*?<\/button>/, '<p style="font-weight:800;color:var(--accent-amber)">Payment submitted successfully. Waiting for verification and approval from the platform administrator.</p>'); return html; };
+  F.mountPayment();
+})();
+
+</script>
+<script id="ftRequestedUpdate2">
+
+/* FINTRACK REQUESTED UPDATE: atomic verification, duration grants, history and benefits. */
+(function () {
+  var F = window.FTRequestedUpdate, busy = false, maintenanceBusy = false, timer = null;
+  F.date = function (ms) { return new Date(ms + 19800000).toISOString().slice(0,10); };
+  F.activation = function (b, days, now) {
+    var oldEnd = F.end(b), active = (b.subscriptionStatus === 'active' || b.subscriptionStatus === 'grace') && oldEnd >= now;
+    var base = active ? oldEnd + 1 : Date.parse(F.date(now) + 'T00:00:00+05:30'), end = base + days * F.day - 1;
+    var before = active ? Math.ceil((oldEnd - now) / F.day) : 0;
+    if (!active) b.subscriptionStartDate = F.date(base);
+    b.subscriptionStatus = 'active'; b.subscriptionExpiry = F.date(end); b.subscriptionAccessUntil = end + 3 * F.day;
+    b.subscriptionPlan = F.planForDays(days); b.approvedDurationDays = days;
+    return { activationAt:now, startDate:F.date(base), expiryDate:F.date(end), expiryAt:end, approvedDays:days, previousRemainingDays:before, totalDays:before+days };
+  };
+  F.notice = function (root, bid, id, subject, message, now) {
+    var n = { id:id,subject:subject,message:message,senderName:(root.credentials || {}).name || 'Platform Administrator',senderRole:'Platform Administrator',audience:'admin',sentAt:now,publishAt:0,expiryAt:0 };
+    var b = root.businesses[bid]; b.inbox = b.inbox || {}; b.inbox[id] = n;
+    root.notifications = root.notifications || {}; root.notifications[id] = Object.assign({},n,{businessId:bid,type:'individual',totalTargets:1,readBy:{}});
+  };
+  F.reconcile = function (root, now) {
+    var accounts = root.referralAccounts || {}, businesses = root.businesses || {};
+    Object.keys(accounts).forEach(function (id) {
+      var r = accounts[id], b = businesses[id]; if (!b || !r.claim || !accounts[r.claim.businessId]) return;
+      var from = accounts[r.claim.businessId], old = (from.referrals || {})[id] || {};
+      from.referrals = from.referrals || {};
+      from.referrals[id] = Object.assign({}, old, { businessId:id,businessName:b.name || '',registeredAt:Number(b.referralRegisteredAt) || 0,status:F.end(b) >= now && b.subscriptionStatus === 'active' ? 'Active' : (b.subscriptionStatus || 'trial'),expiry:F.end(b) || 0,success:!!old.success,rewardPct:Number(old.rewardPct)||0 });
+    });
+  };
+  F.creditReferral = function (root, id, now, paidAmount) {
+    var accounts = root.referralAccounts || {}, r = accounts[id], b = root.businesses[id];
+    if (!r || paidAmount <= 0) return;
+    if (!r.firstPaymentUsed) {
+      if (paidAmount > 0 && r.claim && b.referralRegisteredAt && r.claim.linkedAt <= Number(b.referralRegisteredAt) + 2 * F.day && r.claim.businessId !== id) {
+        var fromId = r.claim.businessId, fromBiz = root.businesses[fromId], from = accounts[fromId], cap = F.limit(fromBiz,now);
+        var successes = from ? Object.values(from.referrals || {}).filter(function (x) { return x.success; }).length : 0;
+        var sameOwner = fromBiz && ((b.adminEmail && b.adminEmail.toLowerCase() === String(fromBiz.adminEmail || '').toLowerCase()) || (b.adminContact && b.adminContact === fromBiz.adminContact));
+        if (from && cap && successes < cap && !sameOwner && !((from.referrals || {})[id] || {}).success) {
+          var cfg = root.referralConfig || {}, reward = Math.max(0,Math.min(100,Number(cfg.rewardPct == null ? 5 : cfg.rewardPct)));
+          var balance = Math.max(0,Number(from.rewardBalancePct)||0), granted = Math.min(reward,Math.max(0,50-balance));
+          from.rewardBalancePct = balance + granted; from.referrals = from.referrals || {};
+          from.referrals[id] = { businessId:id,businessName:b.name || '',registeredAt:Number(b.referralRegisteredAt),status:'Active',expiry:F.end(b),success:true,rewardPct:granted,qualifiedAt:now };
+          r.referralQualifiedAt = now;
+          F.notice(root,fromId,'ref_' + id,'Successful business referral',(b.name || id) + ' activated its first eligible paid subscription. You earned ' + granted + '% referral credit. Available credit: ' + from.rewardBalancePct + '%.',now);
+          var count = successes+1, milestoneCount = Number(cfg.milestoneCount)||0, milestoneDays = Number(cfg.milestoneDays)||0;
+          if (!from.milestoneGranted && milestoneCount > 0 && milestoneCount <= cap && count >= milestoneCount && milestoneDays > 0 && milestoneDays <= 365) {
+            var keepPlan = fromBiz.subscriptionPlan, keepDays = fromBiz.approvedDurationDays;
+            var a = F.activation(fromBiz,milestoneDays,now); fromBiz.subscriptionPlan = keepPlan; if (keepDays == null) delete fromBiz.approvedDurationDays; else fromBiz.approvedDurationDays = keepDays; from.milestoneGranted = true;
+            root.subscriptionHistory = root.subscriptionHistory || {}; root.subscriptionHistory['MILESTONE-' + fromId] = Object.assign({businessId:fromId,source:'referral-milestone'},a);
+            F.notice(root,fromId,'milestone_' + fromId,'Referral milestone benefit','Your configured referral milestone granted ' + milestoneDays + ' extra subscription days. Subscription ends ' + a.expiryDate + '.',now);
+          }
+        }
+      }
+      r.firstPaymentUsed = true;
+    }
+  };
+  F.activationText = function (p, a, manual) { return (manual ? 'Your subscription was manually granted.' : 'Your payment was verified and approved.') + '\nVerified amount: ₹' + Number(p.verifiedAmount || 0).toFixed(2) + '\nPayment method: ' + (p.paymentMethod || 'Manual grant — no payment') + '\nApproved plan: ' + (PLAN_LABELS[p.approvedPlan] || p.approvedPlan || '') + '\nSubscription days granted: ' + a.approvedDays + '\nActivation date: ' + F.date(a.activationAt) + '\nPurchased period starts: ' + a.startDate + '\nExpiry date: ' + a.expiryDate + '\nPreviously remaining days: ' + a.previousRemainingDays + '\nTotal days after grant: ' + a.totalDays + '\nWelcome! Enjoy your active subscription.'; };
+  F.commit = async function (options) {
+    if (!platformAdminUser) throw new Error('Platform administrator access is required.');
+    var now = Date.now(), nid = options.id || ('MANUAL-' + crypto.randomUUID()), message = '';
+    var res = await F.ref('').transaction(function (root) {
+      if (!root) return;
+      var p = options.paymentId ? (root.payments || {})[options.paymentId] : null;
+      if (options.paymentId && (!p || p.status !== 'pending')) { message = 'This request has already been processed.'; return; }
+      var bid = p ? p.businessId : options.businessId, b = (root.businesses || {})[bid];
+      if (!b) { message = 'Business not found.'; return; }
+      if (options.reject) {
+        p.status = 'rejected'; p.rejectionReason = options.reason; p.verifiedAt = now; p.verifiedBy = (root.credentials || {}).name || '';
+        root.payments[nid] = p; delete root.payments[options.paymentId];
+        F.notice(root,bid,'decision_' + nid,'Payment verification rejected','Your payment request was rejected. Reason: ' + options.reason + '\nYou can now submit a corrected payment-verification request.',now);
+        return root;
+      }
+      var days = options.days; if ([30,90,182,365].indexOf(days) < 0) { message = 'Invalid approved duration.'; return; }
+      var available = (root.referralAccounts || {})[bid] || {};
+      if (p && ((Number(p.referralFirstDiscount) > 0 && (!available.claim || available.firstPaymentUsed)) || Number(p.referralCreditsUsed || 0) > Number(available.rewardBalancePct || 0))) { message = 'The referral benefit on this request is no longer available. Reject this request so the business can submit the corrected amount.'; return; }
+      root.subscriptionHistory = root.subscriptionHistory || {}; if (root.subscriptionHistory[nid]) { message = 'This grant was already applied.'; return; }
+      var a = F.activation(b,days,now), account = (root.referralAccounts || {})[bid];
+      b.subscriptionPricingType = p ? p.pricingType : (b.subscriptionPricingType || 'normal');
+      var record = Object.assign({},p || {},a,{businessId:bid,businessName:b.name || '',status:'approved',source:p?'payment-verified':'manual',submittedAmount:p?Number(p.amount)||0:0,amount:options.amount||0,verifiedAmount:options.amount||0,verifiedAt:now,verifiedBy:(root.credentials || {}).name || '',approvedPlan:b.subscriptionPlan,selectedPlan:p?p.plan:b.subscriptionPlan,plan:b.subscriptionPlan,paymentMethod:p?p.paymentMethod||p.txnId||'Legacy payment':'Manual grant',rejectionReason:''});
+      delete record.screenshotUrl;
+      if (p) {
+        if (account && Number(options.amount) > 0) { var first = !account.firstPaymentUsed && account.claim ? 5 : 0; var credits = Math.min(Math.max(0,Number(account.rewardBalancePct)||0),Math.max(0,Number(p.referralCreditsUsed)||0),50-first); account.rewardBalancePct = Math.max(0,(Number(account.rewardBalancePct)||0)-credits); }
+        root.payments[nid] = record; delete root.payments[options.paymentId];
+        root.lifetimeStats = root.lifetimeStats || {}; root.lifetimeStats.totalSubscriptions = (Number(root.lifetimeStats.totalSubscriptions)||0)+1; root.lifetimeStats.totalRevenue = (Number(root.lifetimeStats.totalRevenue)||0)+Number(options.amount||0);
+        F.creditReferral(root,bid,now,Number(options.amount)||0);
+      }
+      root.subscriptionHistory[nid] = Object.assign({},a,{businessId:bid,source:record.source,paymentId:p?nid:'',approvedPlan:b.subscriptionPlan});
+      F.notice(root,bid,'decision_' + nid,'Subscription activated',F.activationText(record,a,!p),now); F.reconcile(root,now);
+      return root;
+    },undefined,false);
+    if (!res.committed) throw new Error(message || 'The change could not be saved. Please retry.');
+    platformData = Object.assign({},platformData,res.snapshot.val()); return res;
+  };
+  openPaymentDetail = function (id) {
+    if (!platformAdminUser) return; var p = (platformData.payments || {})[id]; if (!p || p.status !== 'pending') return;
+    paCurrentPaymentId = id; var b = (platformData.businesses || {})[p.businessId] || {};
+    F.el('paPaymentDetail').innerHTML = '<p><strong>Business:</strong> ' + F.esc(b.name) + ' (' + F.esc(b.displayId || p.businessId) + ')</p><p><strong>Plan selected:</strong> ' + F.esc(PLAN_LABELS[p.plan] || p.plan) + '</p><p><strong>Submitted amount:</strong> ₹' + Number(p.amount || 0).toFixed(2) + '</p><p><strong>Payment method:</strong> ' + F.esc(p.paymentMethod || p.txnId || 'Legacy request') + '</p><p><strong>Mobile:</strong> ' + F.esc(p.mobile) + '</p><p><strong>Discount:</strong> ' + Number(p.discountPct || 0) + '% (₹' + Number(p.discountAmount || 0).toFixed(2) + ')</p><p style="margin:10px 0">Verify the actual screenshot in the support WhatsApp conversation. The application does not store the image.</p>' + F.field('Verified payment amount (₹)', 'ftVerifiedAmount','number',p.amount) + '<div class="form-group"><label>Approved subscription duration</label><select id="ftApprovedDays">' + [30,90,182,365].map(function (d) { return '<option value="'+d+'"'+(d===F.daysFor(p.plan)?' selected':'')+'>'+d+' days</option>'; }).join('') + '</select></div>';
+    F.el('ftVerifiedAmount').min = '0'; F.el('ftVerifiedAmount').step = '0.01'; F.el('paRejectReasonGroup').style.display = 'block'; F.el('paRejectReason').value = ''; F.el('paRejectBtn').innerText = 'Reject'; F.el('paPaymentModal').style.display = 'flex';
+  };
+  approvePayment = async function () {
+    if (busy || !platformAdminUser || !paCurrentPaymentId) return; var amount = Number(F.el('ftVerifiedAmount').value), days = Number(F.el('ftApprovedDays').value);
+    if (F.el('ftVerifiedAmount').value === '' || !Number.isFinite(amount) || amount < 0 || [30,90,182,365].indexOf(days)<0) return alert('Enter a valid verified amount and approved duration.');
+    if (!confirm('Approve the verified payment of ₹' + amount.toFixed(2) + ' and add ' + days + ' days?')) return;
+    busy = true; try { await F.commit({paymentId:paCurrentPaymentId,id:'PAY-' + paCurrentPaymentId + '-' + (platformData.payments[paCurrentPaymentId].submittedAt || 0),amount:Math.round(amount*100)/100,days:days}); closePaPaymentModal(); renderPlatformAdminViews(); alert('Payment approved and saved. Subscription extended once and the business administrator notified.'); } catch(e) { F.failure(e); } finally { busy=false; }
+  };
+  rejectPayment = async function () {
+    if (busy || !platformAdminUser || !paCurrentPaymentId) return; var reason = F.el('paRejectReason').value.trim(); if (!reason) return alert('Enter the rejection reason.'); busy=true;
+    try { await F.commit({paymentId:paCurrentPaymentId,id:'REJECT-' + paCurrentPaymentId + '-' + (platformData.payments[paCurrentPaymentId].submittedAt || 0),reject:true,reason:reason}); closePaPaymentModal(); renderPlatformAdminViews(); alert('Rejection saved. The business administrator has been notified and can submit a corrected request.'); } catch(e) { F.failure(e); } finally { busy=false; }
+  };
+  window.ftGrantManualSubscription = async function () { if (busy || !platformAdminUser) return; var bid=F.el('ftManualBusiness').value, days=Number(F.el('ftManualDays').value); if (!bid || !confirm('Manually add '+days+' subscription days to this business?')) return; busy=true; try { await F.commit({businessId:bid,days:days,amount:0}); renderPlatformAdminViews(); alert('Manual subscription saved separately from paid subscriptions. The administrator has been notified.'); } catch(e) { F.failure(e); } finally { busy=false; } };
+  window.ftSaveReferralSettings = async function () {
+    if (!platformAdminUser) return; var reward=Number(F.el('ftReferralRewardPct').value), count=Number(F.el('ftReferralMilestoneCount').value), days=Number(F.el('ftReferralMilestoneDays').value);
+    if (!Number.isFinite(reward) || reward<0 || reward>100 || !Number.isInteger(count) || count<0 || count>4 || !Number.isInteger(days) || days<0 || days>365 || (!!count !== !!days)) return alert('Use a reward from 0 to 100%, and either disable both milestone fields with zero or use 1–4 referrals and 1–365 days.');
+    try { await F.ref('referralConfig').set({rewardPct:reward,milestoneCount:count,milestoneDays:days}); platformData.referralConfig={rewardPct:reward,milestoneCount:count,milestoneDays:days}; alert('Referral settings saved. Completed payments and earned benefits are unchanged.'); } catch(e) { F.failure(e); }
+  };
+  F.maintenance = async function () {
+    if (!platformAdminUser || maintenanceBusy) return; maintenanceBusy=true;
+    try {
+      var now=Date.now(), res=await F.ref('').transaction(function(root) {
+        if(!root) return; var prior=JSON.stringify([root.referralAccounts,root.paymentHistory,root.subscriptionHistory,root.payments]); F.reconcile(root,now);
+        ['paymentHistory','subscriptionHistory','payments'].forEach(function(key) { Object.keys(root[key]||{}).forEach(function(id) { var p=root[key][id], b=(root.businesses||{})[p.businessId], expiry=Number(p.expiryAt)|| (p.expiryDate?Date.parse(p.expiryDate+'T23:59:59.999+05:30'):0); if(p.status==='pending'||p.status==='rejected') return; if(!expiry && p.status==='approved' && b) expiry=F.end(b); if(expiry && now>expiry && (!b || now>F.end(b))) delete root[key][id]; }); });
+        if(JSON.stringify([root.referralAccounts,root.paymentHistory,root.subscriptionHistory,root.payments])===prior) return; return root;
+      },undefined,false); if(res.committed) platformData=Object.assign({},platformData,res.snapshot.val());
+    } catch(e) { console.error('Subscription history maintenance:',e); } finally { maintenanceBusy=false; }
+    clearTimeout(timer); var times=Object.values(platformData.businesses||{}).map(F.end).filter(function(t){return t>Date.now();}); if(times.length) timer=setTimeout(F.maintenance,Math.min(2147480000,Math.max(1000,Math.min.apply(null,times)-Date.now()+1000)));
+  };
+  var original=renderPASubscriptions;
+  renderPASubscriptions=function() {
+    original(); if(!platformAdminUser) return;
+    var pending=Object.keys(platformData.payments||{}).map(function(id){return Object.assign({id:id},platformData.payments[id]);}).filter(function(p){return p.status==='pending';});
+    var table=F.el('paPendingPaymentsTable'); if(table) { table.closest('table').querySelector('thead').innerHTML='<tr><th>Business</th><th>Plan</th><th>Amount</th><th>Payment method</th><th>Screenshot</th><th>Submitted</th><th>Action</th></tr>'; table.innerHTML=pending.map(function(p){return '<tr><td>'+F.esc(p.businessName||((platformData.businesses||{})[p.businessId]||{}).name)+'</td><td>'+F.esc(PLAN_LABELS[p.plan]||p.plan)+'</td><td>₹'+Number(p.amount||0).toFixed(2)+'</td><td>'+F.esc(p.paymentMethod||p.txnId||'Legacy request')+'</td><td>Review in WhatsApp</td><td>'+F.esc(new Date(p.submittedAt).toLocaleString('en-IN'))+'</td><td><button type="button" data-request="'+F.esc(p.id)+'" class="btn-primary">Review</button></td></tr>';}).join('')||'<tr><td colspan="7">No pending payment verifications.</td></tr>'; table.querySelectorAll('[data-request]').forEach(function(b){b.onclick=function(){openPaymentDetail(b.getAttribute('data-request'));};}); }
+    var history=Object.values(Object.assign({},platformData.paymentHistory||{},platformData.payments||{})).sort(function(a,b){return (b.submittedAt||0)-(a.submittedAt||0);}), ht=F.el('paPaymentHistoryTable');
+    if(ht) { ht.closest('table').querySelector('thead').innerHTML='<tr><th>Business</th><th>Plan / days</th><th>Verified amount</th><th>Payment method</th><th>Status</th><th>Submitted</th><th>Verified / expiry</th><th>Rejection reason</th></tr>'; ht.innerHTML=history.map(function(p){return '<tr><td>'+F.esc(p.businessName||((platformData.businesses||{})[p.businessId]||{}).name)+'</td><td>'+F.esc(PLAN_LABELS[p.approvedPlan||p.plan]||p.plan)+' / '+(p.approvedDays||'-')+'</td><td>₹'+Number(p.verifiedAmount==null?p.amount||0:p.verifiedAmount).toFixed(2)+'</td><td>'+F.esc(p.paymentMethod||p.txnId||'-')+'</td><td>'+F.esc(p.status)+'</td><td>'+F.esc(new Date(p.submittedAt||0).toLocaleDateString('en-IN'))+'</td><td>'+F.esc(p.expiryDate||'-')+'</td><td>'+F.esc(p.rejectionReason||'-')+'</td></tr>';}).join('')||'<tr><td colspan="8">No payment history.</td></tr>'; }
+    if(!F.el('ftManualSubscriptionCard')) { var c=document.createElement('div');c.id='ftManualSubscriptionCard';c.className='app-card';c.innerHTML='<h3>Manual Subscription Activation / Extension</h3><p>Remaining active days are preserved. An administrative suspension is not removed.</p><div class="form-group"><label>Business</label><select id="ftManualBusiness"></select></div><div class="form-group"><label>Duration</label><select id="ftManualDays">'+[30,90,182,365].map(function(d){return '<option value="'+d+'">'+d+' days</option>';}).join('')+'</select></div><button class="btn-primary" onclick="ftGrantManualSubscription()">Activate / Extend</button><h3 style="margin-top:18px">Manual grant history</h3><div id="ftManualGrantHistory"></div><h3 style="margin-top:18px">Referral records</h3><div id="ftPlatformReferrals"></div>'; F.el('paSubscriptionsTab').appendChild(c); }
+    var select=F.el('ftManualBusiness'), selected=select.value; select.innerHTML=Object.keys(platformData.businesses||{}).map(function(id){var b=platformData.businesses[id];return '<option value="'+F.esc(id)+'">'+F.esc(b.name)+' ('+F.esc(b.displayId||id)+')</option>';}).join(''); if(selected)select.value=selected;
+    F.el('ftManualGrantHistory').innerHTML=Object.values(platformData.subscriptionHistory||{}).filter(function(x){return x.source!=='payment-verified';}).map(function(x){return '<p>'+F.esc(((platformData.businesses||{})[x.businessId]||{}).name||x.businessId)+' — '+F.esc(x.source)+' — '+x.approvedDays+' days — ends '+F.esc(x.expiryDate)+'</p>';}).join('')||'No manual grants.';
+    F.el('ftPlatformReferrals').innerHTML=Object.keys(platformData.referralAccounts||{}).map(function(id){var r=platformData.referralAccounts[id];return '<p>'+F.esc(((platformData.businesses||{})[id]||{}).name||id)+' — '+F.esc(r.code)+' — referred by '+F.esc((r.claim||{}).businessName||'none')+' — successful '+Object.values(r.referrals||{}).filter(function(x){return x.success;}).length+' — balance '+(Number(r.rewardBalancePct)||0)+'%</p>';}).join('')||'No referral records.';
+    F.maintenance();
+  };
+  var settings=renderPASettings; renderPASettings=function() { settings(); if(!platformAdminUser||F.el('ftReferralSettings'))return; var c=document.createElement('div');c.id='ftReferralSettings';c.className='app-card';var cfg=F.config();c.innerHTML='<h3>Application Control — Referral Settings</h3><p>First referred-business discount stays at 5%; combined discount is capped at 50%. Plan limits remain three or four. A milestone is disabled by default and never exceeds the active plan limit.</p>'+F.field('Earned discount per successful referral (0–100%)','ftReferralRewardPct','number',cfg.rewardPct==null?5:cfg.rewardPct)+F.field('Optional milestone referral count (0 = disabled; max 4)','ftReferralMilestoneCount','number',cfg.milestoneCount||0)+F.field('Optional milestone extra days (0 = disabled)','ftReferralMilestoneDays','number',cfg.milestoneDays||0)+'<button class="btn-primary" onclick="ftSaveReferralSettings()">Save Referral Settings</button>';F.el('paSettingsTab').appendChild(c); };
+})();
+
+</script>
+<script id="ftRequestedUpdate3">
+
+/* FINTRACK REQUESTED UPDATE: full-screen subscription gate with notification access. */
+(function () {
+  var F = window.FTRequestedUpdate, readyBiz = '';
+  F.hard = function () { if (!currentUser || platformAdminUser) return false; var m = ftSubModel(); return !!(m && m.mode === 'blocked'); };
+  window.ftSubscriptionBootGate = function () {
+    if (platformAdminUser) return;
+    readyBiz = ''; document.body.classList.add('ft-sub-checking');
+    var box = F.el('ftSubscriptionBootGate');
+    if (!box) { box = document.createElement('div'); box.id = 'ftSubscriptionBootGate'; box.className = 'modal'; box.style.cssText = 'z-index:100001;background:var(--bg)'; box.innerHTML = '<div style="text-align:center"><h3>FinTrack Business</h3><p>Checking your subscription...</p><p id="ftSubCheckError" style="margin-top:12px"></p></div>'; document.body.appendChild(box); }
+  };
+  window.ftSubscriptionCheckFailed = function () { var message = F.el('ftSubCheckError'); if (message) { message.textContent = 'Your subscription could not be checked. Please reconnect and reload; operational pages remain locked until the saved subscription is available.'; var retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn-primary'; retry.textContent = 'Retry'; retry.onclick = function () { location.reload(); }; message.appendChild(retry); } };
+  window.ftSubscriptionReady = function () { readyBiz = F.bid(); ftRenderAccessLock(); var g = F.el('ftSubscriptionBootGate'); if (g) g.remove(); document.body.classList.remove('ft-sub-checking'); };
+  var priorRender = ftRenderAccessLock;
+  ftRenderAccessLock = window.ftRenderAccessLock = function () {
+    priorRender();
+    var el = F.el('ftAccessLock');
+    if (F.hard()) {
+      document.body.classList.add('ft-sub-locked');
+      if (el) {
+        el.style.top = '0'; el.style.zIndex = '100002'; el.style.background = 'var(--card-bg)'; el.tabIndex = -1;
+        var heading = Array.from(el.querySelectorAll('div')).find(function (n) { return n.children.length === 0 && /Subscription Not Renewed/.test(n.textContent); }); if (heading) heading.textContent = 'Subscription Required';
+        if (!F.el('ftLockNotifications')) { var b = document.createElement('button'); b.id = 'ftLockNotifications'; b.type = 'button'; b.className = 'btn-primary'; b.textContent = 'Read Notifications'; b.style.marginTop = '12px'; b.onclick = function () { window.ftOpenNotifPanel(); }; el.firstElementChild.appendChild(b); }
+        if (hasPendingPayment()) { var note = Array.from(el.querySelectorAll('div')).find(function (n) { return n.children.length === 0 && n.textContent.indexOf('Payment submitted.') === 0; }); if (note) note.textContent = 'Payment submitted successfully. Waiting for verification and approval from the platform administrator.'; }
+      }
+    }
+    if (!currentUser || platformAdminUser) { var gate = F.el('ftSubscriptionBootGate'); if (gate) gate.remove(); document.body.classList.remove('ft-sub-checking'); }
+    var pm = F.el('paSubmitPaymentModal'); if (pm) pm.style.zIndex = '100005';
+  };
+  var oldClose = ftCloseSubNotice; ftCloseSubNotice = window.ftCloseSubNotice = function () { if (F.hard()) { ftRenderAccessLock(); return; } oldClose(); };
+  var oldNotif = window.ftOpenNotifPanel; window.ftOpenNotifPanel = function () { oldNotif(); var el = F.el('ftNotifOverlay'); if (el) el.style.zIndex = '100010'; };
+  var allowed = function (n) { return n && n.closest && n.closest('#ftAccessLock,#paSubmitPaymentModal,#ftNotifOverlay,#ftSubscriptionBootGate'); };
+  ['click','input','change','keydown','focusin','submit'].forEach(function (name) {
+    document.addEventListener(name, function (e) {
+      if ((!F.hard() && !document.body.classList.contains('ft-sub-checking')) || allowed(e.target)) return;
+      e.preventDefault(); e.stopImmediatePropagation(); if (name === 'focusin' && e.target.blur) e.target.blur();
+    }, true);
+  });
+  var oldSwitch = switchTab; switchTab = function () { if (F.hard()) { ftRenderAccessLock(); return; } return oldSwitch.apply(this, arguments); };
+  var st = document.createElement('style'); st.id = 'ftRequestedSubscriptionGateStyle'; st.textContent = 'body.ft-sub-locked .tab-content,body.ft-sub-locked nav,body.ft-sub-locked .tab-bar,body.ft-sub-locked .floating-support,body.ft-sub-checking .tab-content,body.ft-sub-checking nav,body.ft-sub-checking .tab-bar{visibility:hidden!important} @media print{body.ft-sub-locked #printableInvoiceArea,body.ft-sub-locked #printableInvoiceArea *{visibility:hidden!important}}'; document.head.appendChild(st);
+  window.addEventListener('pageshow', function () { if (currentUser && !platformAdminUser && readyBiz !== F.bid()) window.ftSubscriptionBootGate(); ftRenderAccessLock(); });
+  window.addEventListener('popstate', function () { if (F.hard()) ftRenderAccessLock(); });
+  var complete = completeLogin; completeLogin = function (user) { window.ftSubscriptionBootGate(); complete(user); if (readyBiz === F.bid()) window.ftSubscriptionReady(); };
+  F.referralBoot = F.bind;
+  var own = listenOwnBusinessRecord; listenOwnBusinessRecord = function () { own(); F.bind(); };
+  ftRenderAccessLock();
+})();
+
+</script>
+<script id="ftRequestedUpdate4">
+
+/* FINTRACK REQUESTED UPDATE: ending a session deliberately is never shown as a
+   lost connection. While a sign-out is running, the cloud sync badge keeps the
+   exact appearance it had the moment sign-out started, so the ending session
+   cannot repaint it as disconnected. Ordinary reporting resumes on the next load. */
+(function () {
+  var F = window.FTRequestedUpdate, frozen = null, applying = false, release = null;
+  var badge = function () { return F.el('cloudSyncStatusBadge'); };
+  var reapply = function () {
+    var b = badge(); if (!b || !frozen) return;
+    if (b.className !== frozen.cls) b.className = frozen.cls;
+    if (b.title !== frozen.title) b.title = frozen.title;
+    if (b.innerHTML !== frozen.html) b.innerHTML = frozen.html;
+  };
+  var observer = new MutationObserver(function () {
+    if (applying) return;
+    applying = true;
+    try { reapply(); } finally { applying = false; }
+  });
+  var stop = function () { try { observer.disconnect(); } catch (e) {} frozen = null; clearTimeout(release); };
+  var hold = function () {
+    var b = badge(); if (!b) return;
+    frozen = { cls: b.className, title: b.title, html: b.innerHTML };
+    observer.observe(b, { attributes: true, attributeFilter: ['class', 'title'], childList: true, subtree: true, characterData: true });
+    reapply();
+    clearTimeout(release); release = setTimeout(stop, 15000);
+  };
+  var original = window.appLogout;
+  if (typeof original === 'function') window.appLogout = function () { hold(); return original.apply(this, arguments); };
+})();
+
+</script>
+<!-- END FINTRACK REQUESTED SUBSCRIPTION / PAYMENT / REFERRAL UPDATE -->
 </body>
 </html>
