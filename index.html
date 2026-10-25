@@ -4244,6 +4244,10 @@ const FIREBASE_CONFIG = {
         staff++;
       });
       var facts = { staffCount: staff, usageKB: Math.round(JSON.stringify(appData).length / 1024), lastActive: Date.now(), adminName: String(currentUser.name || ''), updatedAt: Date.now() };
+      /* The size is published only when this browser really holds the records. A
+         sign-in that has not loaded them yet must never replace the business's
+         known storage figure with 0 KB. */
+      if (!facts.usageKB) delete facts.usageKB;
       firebase.database().ref('businesses/' + authBusinessId + '/meta/facts').update(facts).catch(function () {});
     } catch (e) {}
   }
@@ -9470,6 +9474,8 @@ function ftAcceptPublic(value) {
     }
   }
   if (pub.planPricing) platformData.planPricing = pub.planPricing;
+  /* The referral reward and milestone read the same in every account. */
+  if (pub.referralConfig) platformData.referralConfig = pub.referralConfig;
   if (pub.introductoryOffer) platformData.introductoryOffer = pub.introductoryOffer;
   ftPublicLoaded = true;
   ftPublicChanged();
@@ -9680,6 +9686,7 @@ function mirrorPublicPlatformSlice() {
     platformAdminEmail: (platformData.credentials && platformData.credentials.email) || '',
     branding: platformData.branding || null,
     planPricing: platformData.planPricing || null,
+    referralConfig: platformData.referralConfig || (platformData.publicInfo || {}).referralConfig || null,
     introductoryOffer: platformData.introductoryOffer || null,
     updatedAt: Date.now()
   };
@@ -10339,7 +10346,7 @@ function renderPABusinesses() {
       '<td style="font-size:.78rem">'+(lastAct?formatTimeAgo(lastAct):'Never')+'</td>'+
       '<td><span class="pa-badge pa-badge-'+subStatus+'">'+subStatus.charAt(0).toUpperCase()+subStatus.slice(1)+'</span></td>'+
       '<td style="font-size:.78rem">'+window.ftExpiryCell(b, subStatus)+'</td>'+
-      '<td style="font-size:.78rem">'+window.ftFmtBytes((usage.currentKB||0)*1024)+'</td>';
+      '<td style="font-size:.78rem">'+(usage.known?window.ftFmtBytes(usage.currentKB*1024):'Unavailable')+'</td>';
     tbody.appendChild(tr);
   });
 }
@@ -10391,7 +10398,7 @@ function calculateBizDataUsage(b) {
     (appData.transferLog||[]).forEach(function(t) { if (t.date === today) todayRecords++; });
     todayKB = (todayRecords * 0.5);
   }
-  return { currentKB: currentKB, cumulativeKB: cumulativeKB, todayKB: todayKB, weeklyKB: usage.weeklyKB||0, monthlyKB: usage.monthlyKB||0, estimated: !b.isCurrentBusiness };
+  return { currentKB: currentKB, known: currentKB > 0, cumulativeKB: cumulativeKB, todayKB: todayKB, weeklyKB: usage.weeklyKB||0, monthlyKB: usage.monthlyKB||0, estimated: !b.isCurrentBusiness };
 }
 
 /* FORMAT TIME AGO */
@@ -10464,11 +10471,11 @@ function openBusinessProfile(bizId) {
   /* Data Usage Section */
   html += '<div class="app-card" style="border-left:5px solid var(--primary)"><h3 style="font-size:1rem;font-weight:800;margin-bottom:12px"><i class="fa-solid fa-database" style="color:var(--primary)"></i> Business Data Usage (IST)</h3>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">'+
-    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Current Storage</span><div style="font-size:1.3rem;font-weight:800;color:var(--primary);margin-top:4px">'+usage.currentKB.toFixed(1)+' KB</div></div>'+
-    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Cumulative Data Added</span><div style="font-size:1.3rem;font-weight:800;color:var(--accent-green);margin-top:4px">'+usage.cumulativeKB.toFixed(1)+' KB</div></div>'+
-    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Added Today (IST)</span><div style="font-size:1.3rem;font-weight:800;color:var(--accent-amber);margin-top:4px">'+usage.todayKB.toFixed(1)+' KB</div></div>'+
-    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Weekly Usage</span><div style="font-size:1.3rem;font-weight:800;color:var(--accent-purple);margin-top:4px">'+(usage.weeklyKB||0).toFixed(1)+' KB</div></div>'+
-    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Monthly Usage</span><div style="font-size:1.3rem;font-weight:800;color:var(--atmos-navy);margin-top:4px">'+(usage.monthlyKB||0).toFixed(1)+' KB</div></div>'+
+    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Current Storage</span><div style="font-size:1.3rem;font-weight:800;color:var(--primary);margin-top:4px">'+(usage.known?usage.currentKB.toFixed(1)+' KB':'Unavailable')+'</div></div>'+
+    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Cumulative Data Added</span><div style="font-size:1.3rem;font-weight:800;color:var(--accent-green);margin-top:4px">'+(usage.cumulativeKB>0?usage.cumulativeKB.toFixed(1)+' KB':'Unavailable')+'</div></div>'+
+    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Added Today (IST)</span><div style="font-size:1.3rem;font-weight:800;color:var(--accent-amber);margin-top:4px">'+(usage.todayKB>0?usage.todayKB.toFixed(1)+' KB':'Unavailable')+'</div></div>'+
+    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Weekly Usage</span><div style="font-size:1.3rem;font-weight:800;color:var(--accent-purple);margin-top:4px">'+(usage.weeklyKB>0?usage.weeklyKB.toFixed(1)+' KB':'Unavailable')+'</div></div>'+
+    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Monthly Usage</span><div style="font-size:1.3rem;font-weight:800;color:var(--atmos-navy);margin-top:4px">'+(usage.monthlyKB>0?usage.monthlyKB.toFixed(1)+' KB':'Unavailable')+'</div></div>'+
     '</div>';
   if (usage.estimated) {
     html += '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius-md);padding:8px 12px;font-size:.78rem;color:#92400e"><i class="fa-solid fa-circle-info"></i> Data usage figures are estimates based on stored metadata. Actual figures are shown only for the currently connected business.</div>';
@@ -12062,7 +12069,9 @@ window.addEventListener('DOMContentLoaded', function() {
           var v = res[k];
           if (v == null) return;
           any = true; total += v;
-          pd.dataUsage[k] = Object.assign({}, pd.dataUsage[k] || {}, { currentKB: v / 1024 });
+          /* A zero measurement never replaces a known figure, so the storage
+             column cannot fall to 0 KB after one empty or failed read. */
+          if (v > 0) pd.dataUsage[k] = Object.assign({}, pd.dataUsage[k] || {}, { currentKB: v / 1024 });
         });
         window.ftStorageTotal = total;
         window.ftStorageMeasured = any;
@@ -12274,7 +12283,8 @@ window.addEventListener('DOMContentLoaded', function() {
         root.update({ online: true, lastActive: sv }).catch(function () {});
         try {
           var kb = (typeof appData !== 'undefined' && appData) ? Math.round(JSON.stringify(appData).length / 1024) : 0;
-          firebase.database().ref('businesses/' + biz + '/meta/facts').update({ lastActive: Date.now(), usageKB: kb }).catch(function () {});
+          var __beat = { lastActive: Date.now() }; if (kb > 0) __beat.usageKB = kb;
+          firebase.database().ref('businesses/' + biz + '/meta/facts').update(__beat).catch(function () {});
         } catch (e) {}
       };
       beat();
@@ -12730,14 +12740,18 @@ window.addEventListener('DOMContentLoaded', function() {
     var r = db(); if (!r || !isPA()) return {};
     var pd = PD(), ids = ftBizOrderIds(pd.businesses || {}), out = {};
     for (var i = 0; i < ids.length; i++) {
-      var kb = 0;
-      /* what the business publishes on its own beat */
+      var kb = 0, failed = false;
+      /* What the business publishes on its own beat. */
       try { var f = await r.ref('businesses/' + ids[i] + '/meta/facts/usageKB').get(); kb = Number(f && f.val()) || 0; } catch (e) { kb = 0; }
-      /* otherwise measure its records directly */
-      if (!kb) {
-        try { var snap = await r.ref('businesses/' + ids[i] + '/data').get(); var v = snap && snap.val(); kb = v ? (JSON.stringify(v).length / 1024) : 0; } catch (e) { kb = -1; }
-      }
-      if (kb >= 0) { out[ids[i]] = Math.round(kb * 1024); if (kb > 0) ftRememberBizKB(ids[i], Math.round(kb * 10) / 10); }
+      /* And everything this platform administrator can read for the business, so
+         a business holding records is measured from what is really stored
+         instead of reading as 0 KB. Only a read that truly fails is reported as
+         unavailable, and a zero is never remembered as a measurement. */
+      try {
+        var snap = await r.ref('businesses/' + ids[i]).get(); var v = snap && snap.val();
+        if (v) kb = Math.max(kb, JSON.stringify(v).length / 1024);
+      } catch (e) { failed = true; }
+      if (kb > 0) { out[ids[i]] = Math.round(kb * 1024); ftRememberBizKB(ids[i], Math.round(kb * 10) / 10); }
       else out[ids[i]] = null;
     }
     return out;
@@ -14458,6 +14472,9 @@ if (typeof __ftSwitchTab === 'function') {
       + '<p style="margin:6px 0 0;font-size:.8rem;overflow-wrap:anywhere"><a href="' + F.esc(link.href) + '">' + F.esc(link.href) + '</a></p></div>'
       + '<p style="font-size:.8rem;margin:0 0 10px"><strong>Referred by:</strong> ' + (r.claim ? F.esc(r.claim.businessName) + ' <span style="font-family:monospace">(' + F.esc(r.claim.code) + ')</span>' : 'Not referred') + '</p>'
       + '<p style="font-size:.74rem;color:var(--text-muted);margin:0 0 12px;line-height:1.6">You can earn up to ' + F.referralCapacity + ' successful referrals while your subscription is active, each giving ' + reward + '% discount credit — ' + F.maxBalance() + '% in total. The referred business receives a one-time ' + F.firstDiscount + '% discount on its first paid subscription. The credit you earn is kept for your next subscription.</p>'
+      + (Number(F.config().milestoneCount) > 0 && Number(F.config().milestoneDays) > 0
+        ? '<p style="font-size:.74rem;color:var(--accent-purple);margin:0 0 12px;line-height:1.6"><strong>Milestone bonus:</strong> reaching ' + Number(F.config().milestoneCount) + ' successful referrals adds ' + Number(F.config().milestoneDays) + ' extra subscription days to your subscription once.</p>'
+        : '')
       + (canEnter ? '<div style="margin-bottom:14px">' + F.field('Enter the business referral ID within two days of registration', 'ftEnterReferral') + '<button type="button" class="btn-primary" onclick="ftApplyReferral()">Save Referral ID</button></div>' : '<p style="font-size:.76rem;color:var(--text-muted);margin:0 0 14px">Referral entry ' + (r.claim ? 'is locked after linking.' : 'is closed for this account.') + '</p>')
       + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">'
       + '<h4 style="font-size:.85rem;font-weight:900;color:var(--atmos-navy);margin:0"><i class="fa-solid fa-clock-rotate-left" style="color:var(--accent-purple)"></i> Referral activity</h4>'
@@ -14577,6 +14594,14 @@ if (typeof __ftSwitchTab === 'function') {
 (function () {
   var F = window.FTRequestedUpdate, busy = false, maintenanceBusy = false, timer = null;
   F.date = function (ms) { return new Date(ms + 19800000).toISOString().slice(0,10); };
+  /* The referral settings wording is written once here, so the platform
+     administrator's account and every business administrator account read the
+     same reward and the same milestone. */
+  F.referralSummary = function () { return 'The first-subscription discount stays at ' + F.firstDiscount + '%. Every plan allows the same ' + F.referralCapacity + ' successful referrals, each earning the reward below for the referring business \u2014 ' + F.maxBalance() + '% in total.'; };
+  F.milestoneHelp = function () { return 'Milestone bonus: both fields must be set. When a referring business reaches the referral count, the extra subscription days are added once to its subscription as a bonus. Enter 0 in both fields to keep it off.'; };
+  F.rewardLabel = function () { return 'Earned discount per successful referral (10% to 15%)'; };
+  F.milestoneCountLabel = function () { return 'Milestone referral count (0 = off; up to ' + F.referralCapacity + ')'; };
+  F.milestoneDaysLabel = function () { return 'Milestone extra subscription days (0 = off; 1 to 365)'; };
   F.activation = function (b, days, now) {
     var oldEnd = F.end(b), active = (b.subscriptionStatus === 'active' || b.subscriptionStatus === 'grace') && oldEnd >= now;
     var base = active ? oldEnd + 1 : Date.parse(F.date(now) + 'T00:00:00+05:30'), end = base + days * F.day - 1;
@@ -14685,8 +14710,16 @@ if (typeof __ftSwitchTab === 'function') {
   window.ftGrantManualSubscription = async function () { if (busy || !platformAdminUser) return; var bid=F.el('ftManualBusiness').value, days=Number(F.el('ftManualDays').value); if (!bid || !confirm('Manually add '+days+' subscription days to this business?')) return; busy=true; try { await F.commit({businessId:bid,days:days,amount:0}); renderPlatformAdminViews(); alert('Manual subscription saved separately from paid subscriptions. The administrator has been notified.'); } catch(e) { F.failure(e); } finally { busy=false; } };
   window.ftSaveReferralSettings = async function () {
     if (!platformAdminUser) return; var reward=Number(F.el('ftReferralRewardPct').value), count=Number(F.el('ftReferralMilestoneCount').value), days=Number(F.el('ftReferralMilestoneDays').value);
-    if (!Number.isFinite(reward) || reward<0 || reward>100 || !Number.isInteger(count) || count<0 || count>4 || !Number.isInteger(days) || days<0 || days>365 || (!!count !== !!days)) return alert('Use a reward from 0 to 100%, and either disable both milestone fields with zero or use 1–4 referrals and 1–365 days.');
-    try { await F.ref('referralConfig').set({rewardPct:reward,milestoneCount:count,milestoneDays:days}); platformData.referralConfig={rewardPct:reward,milestoneCount:count,milestoneDays:days}; alert('Referral settings saved. Completed payments and earned benefits are unchanged.'); } catch(e) { F.failure(e); }
+    if (!Number.isFinite(reward) || reward<10 || reward>15 || !Number.isInteger(count) || count<0 || count>F.referralCapacity || !Number.isInteger(days) || days<0 || days>365 || (!!count !== !!days)) return alert('Enter a reward between 10% and 15%, and either keep both milestone fields at zero or give a referral count up to ' + F.referralCapacity + ' together with 1 to 365 extra subscription days.');
+    try {
+      await F.ref('referralConfig').set({rewardPct:reward,milestoneCount:count,milestoneDays:days});
+      platformData.referralConfig={rewardPct:reward,milestoneCount:count,milestoneDays:days};
+      /* Published with the shared platform settings so the reward and the
+         milestone read the same in the platform administrator account and in
+         every business administrator account. */
+      try { mirrorPublicPlatformSlice(); } catch (e) {}
+      alert('Referral settings saved. Every account now shows the same reward and milestone, and completed payments and earned benefits are unchanged.');
+    } catch(e) { F.failure(e); }
   };
   F.maintenance = async function () {
     if (!platformAdminUser || maintenanceBusy) return; maintenanceBusy=true;
@@ -14744,20 +14777,22 @@ if (typeof __ftSwitchTab === 'function') {
   renderPASettings = function () {
     __settingsRender.apply(this, arguments);
     var rewardEl = F.el('ftReferralRewardPct'), countEl = F.el('ftReferralMilestoneCount');
-    if (rewardEl) { var lab = rewardEl.closest('.form-group').querySelector('label'); if (lab) lab.textContent = 'Earned discount per successful referral (10 to 15%, default 10%)'; }
-    if (countEl) { var lab2 = countEl.closest('.form-group').querySelector('label'); if (lab2) lab2.textContent = 'Optional milestone referral count (0 = disabled; max ' + F.referralCapacity + ')'; }
+    if (rewardEl) { var lab = rewardEl.closest('.form-group').querySelector('label'); if (lab) lab.textContent = F.rewardLabel(); }
+    if (countEl) { var lab2 = countEl.closest('.form-group').querySelector('label'); if (lab2) lab2.textContent = F.milestoneCountLabel(); }
+    var daysEl = F.el('ftReferralMilestoneDays');
+    if (daysEl) { var lab3 = daysEl.closest('.form-group').querySelector('label'); if (lab3) lab3.textContent = F.milestoneDaysLabel(); }
     var card = F.el('ftReferralSettings'), note = card ? card.querySelector('p') : null;
-    if (note) note.textContent = 'The first-subscription discount stays at ' + F.firstDiscount + '%. Capacity is fixed at ' + F.referralCapacity + ' successful referrals for every plan, each earning the configured reward (10% by default, so ' + F.maxBalance() + '% at most). A milestone is disabled by default and never exceeds the ' + F.referralCapacity + '-referral capacity.';
+    if (note) note.textContent = F.referralSummary();
   };
   var __saveReferralSettings = window.ftSaveReferralSettings;
   window.ftSaveReferralSettings = async function () {
     var reward = Number((F.el('ftReferralRewardPct') || {}).value), count = Number((F.el('ftReferralMilestoneCount') || {}).value), days = Number((F.el('ftReferralMilestoneDays') || {}).value);
     if (!Number.isFinite(reward) || reward < 10 || reward > 15) return alert('Enter a reward between 10% and 15% for each successful referral.');
-    if (!Number.isInteger(count) || count < 0 || count > F.referralCapacity) return alert('Enter a milestone referral count between 0 (disabled) and ' + F.referralCapacity + '.');
-    if (!Number.isInteger(days) || days < 0 || days > 365 || (!!count !== !!days)) return alert('Enter 0 to disable the milestone, or a referral count together with 1 to 365 extra days.');
+    if (!Number.isInteger(count) || count < 0 || count > F.referralCapacity) return alert('Enter a milestone referral count between 0 (off) and ' + F.referralCapacity + '.');
+    if (!Number.isInteger(days) || days < 0 || days > 365 || (!!count !== !!days)) return alert('The milestone bonus needs both fields: give the referral count and the extra subscription days (1 to 365) it grants. Enter 0 in both fields instead to keep the milestone off.');
     return __saveReferralSettings.apply(this, arguments);
   };
-  var settings=renderPASettings; renderPASettings=function() { settings(); if(!platformAdminUser||F.el('ftReferralSettings'))return; var c=document.createElement('div');c.id='ftReferralSettings';c.className='app-card';var cfg=F.config();c.innerHTML='<h3>Application Control — Referral Settings</h3><p>First referred-business discount stays at 5%; combined discount is capped at 50%. Plan limits remain three or four. A milestone is disabled by default and never exceeds the active plan limit.</p>'+F.field('Earned discount per successful referral (0–100%)','ftReferralRewardPct','number',(cfg.rewardPct==null||cfg.rewardPct<10)?10:cfg.rewardPct)+F.field('Optional milestone referral count (0 = disabled; max 4)','ftReferralMilestoneCount','number',cfg.milestoneCount||0)+F.field('Optional milestone extra days (0 = disabled)','ftReferralMilestoneDays','number',cfg.milestoneDays||0)+'<button class="btn-primary" onclick="ftSaveReferralSettings()">Save Referral Settings</button>';F.el('paSettingsTab').appendChild(c); };
+  var settings=renderPASettings; renderPASettings=function() { settings(); if(!platformAdminUser||F.el('ftReferralSettings'))return; var c=document.createElement('div');c.id='ftReferralSettings';c.className='app-card';var cfg=F.config();c.innerHTML='<h3>Application Control — Referral Settings</h3><p>'+F.referralSummary()+'</p><p>'+F.milestoneHelp()+'</p>'+F.field(F.rewardLabel(),'ftReferralRewardPct','number',(cfg.rewardPct==null||cfg.rewardPct<10)?10:cfg.rewardPct)+F.field(F.milestoneCountLabel(),'ftReferralMilestoneCount','number',cfg.milestoneCount||0)+F.field(F.milestoneDaysLabel(),'ftReferralMilestoneDays','number',cfg.milestoneDays||0)+'<button class="btn-primary" onclick="ftSaveReferralSettings()">Save Referral Settings</button>';F.el('paSettingsTab').appendChild(c); };
 })();
 
 </script>
@@ -14765,7 +14800,7 @@ if (typeof __ftSwitchTab === 'function') {
 
 /* FINTRACK REQUESTED UPDATE: full-screen subscription gate with notification access. */
 (function () {
-  var F = window.FTRequestedUpdate, readyBiz = '', checkTimer = null, releaseTimer = null;
+  var F = window.FTRequestedUpdate, readyBiz = '', checkTimer = null, releaseTimer = null, watchTimer = null;
   F.hard = function () { if (!currentUser || platformAdminUser) return false; var m = ftSubModel(); return !!(m && m.mode === 'blocked'); };
   /* The business record this device already holds answers the subscription
      question at once, so a normal sign-in is never held behind a splash. */
@@ -14779,15 +14814,21 @@ if (typeof __ftSwitchTab === 'function') {
       '<div style="margin:20px auto 0;width:120px;height:3px;background:#e2e8f0;border-radius:2px;overflow:hidden;"><div style="height:100%;width:40%;background:#2563eb;border-radius:2px;animation:ftbSplashLoad 1.1s linear infinite;"></div></div>' +
       '</div>';
   };
+  /* The checking surface carries the splash artwork itself and nothing else. It
+     deliberately does not use the modal styling, whose background watermark
+     would paint a second, larger copy of the same logo behind this one. */
   F.checkCard = function () {
     var box = F.el('ftSubscriptionBootGate');
-    if (!box) { box = document.createElement('div'); box.id = 'ftSubscriptionBootGate'; box.className = 'modal'; box.style.cssText = 'z-index:100001;background:var(--bg)'; box.innerHTML = F.splashArt(); document.body.appendChild(box); }
+    if (!box) { box = document.createElement('div'); box.id = 'ftSubscriptionBootGate'; box.style.cssText = 'position:fixed;inset:0;z-index:100001;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#F6F3ED'; box.innerHTML = F.splashArt(); document.body.appendChild(box); }
     return box;
   };
+  /* The platform splash is the only surface a sign-in shows. Its own screens are
+     recognized here so the checking surface is never drawn on top of one. */
+  F.splashOnScreen = function () { return !!(F.el('ftbBootSplash') || F.el('ftbWelcomeSplash') || F.el('ftSignOutSplash')); };
   /* Show the surface again. The subscription lock itself is untouched: it stays
      in force wherever the saved business record says it applies. */
   window.ftSubscriptionRelease = function () {
-    clearTimeout(checkTimer); clearTimeout(releaseTimer);
+    clearTimeout(checkTimer); clearTimeout(releaseTimer); clearInterval(watchTimer);
     var box = F.el('ftSubscriptionBootGate'); if (box) box.remove();
     document.body.classList.remove('ft-sub-checking');
     try { ftRenderAccessLock(); } catch (e) {}
@@ -14797,13 +14838,16 @@ if (typeof __ftSwitchTab === 'function') {
     readyBiz = '';
     if (F.known()) { window.ftSubscriptionReady(); return; }
     document.body.classList.add('ft-sub-checking');
-    clearTimeout(checkTimer); clearTimeout(releaseTimer);
-    checkTimer = setTimeout(function () { if (document.body.classList.contains('ft-sub-checking')) F.checkCard(); }, 250);
+    clearTimeout(checkTimer); clearTimeout(releaseTimer); clearInterval(watchTimer);
+    /* Drawn only when the platform splash is not already covering the screen. */
+    checkTimer = setTimeout(function () { if (document.body.classList.contains('ft-sub-checking') && !F.splashOnScreen()) F.checkCard(); }, 250);
+    /* And withdrawn the moment one appears, so the logo is never seen twice. */
+    watchTimer = setInterval(function () { var g = F.el('ftSubscriptionBootGate'); if (g && F.splashOnScreen()) g.remove(); }, 200);
     /* A slow or refused cloud read must never keep anyone out of the app. */
     releaseTimer = setTimeout(function () { if (document.body.classList.contains('ft-sub-checking')) window.ftSubscriptionRelease(); }, 4000);
   };
   window.ftSubscriptionCheckFailed = function () { window.ftSubscriptionRelease(); };
-  window.ftSubscriptionReady = function () { readyBiz = F.bid(); clearTimeout(checkTimer); clearTimeout(releaseTimer); ftRenderAccessLock(); var g = F.el('ftSubscriptionBootGate'); if (g) g.remove(); document.body.classList.remove('ft-sub-checking'); };
+  window.ftSubscriptionReady = function () { readyBiz = F.bid(); clearTimeout(checkTimer); clearTimeout(releaseTimer); clearInterval(watchTimer); ftRenderAccessLock(); var g = F.el('ftSubscriptionBootGate'); if (g) g.remove(); document.body.classList.remove('ft-sub-checking'); };
   var priorRender = ftRenderAccessLock;
   ftRenderAccessLock = window.ftRenderAccessLock = function () {
     priorRender();
