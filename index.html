@@ -5266,6 +5266,7 @@ const FIREBASE_CONFIG = {
     } else {
       showLoginError('Sign-in could not be completed. Please try again.');
     }
+    if (code) { var codeBox = document.getElementById('loginErrorText'); if (codeBox && codeBox.innerText.indexOf('(Code:') < 0) codeBox.innerText += '  (Code: ' + code + ')'; }
   }
 
   /* Finish sign-in for an account that was already found in the local list. */
@@ -5400,7 +5401,7 @@ const FIREBASE_CONFIG = {
       if (managed) { try { saveData(); } catch (e) {} }
     } catch (error) {
       if (!currentUser) detachTenant();
-      showLoginError(ftAccountError(error));
+      showLoginError(ftAccountError(error) + (error && error.code ? '  (Code: ' + error.code + ')' : ''));
     } finally {
       if (button) { button.disabled = false; if (button.dataset.label) button.innerHTML = button.dataset.label; }
     }
@@ -14734,16 +14735,36 @@ if (typeof __ftSwitchTab === 'function') {
 
 /* FINTRACK REQUESTED UPDATE: full-screen subscription gate with notification access. */
 (function () {
-  var F = window.FTRequestedUpdate, readyBiz = '';
+  var F = window.FTRequestedUpdate, readyBiz = '', checkTimer = null, releaseTimer = null;
   F.hard = function () { if (!currentUser || platformAdminUser) return false; var m = ftSubModel(); return !!(m && m.mode === 'blocked'); };
+  /* The business record this device already holds answers the subscription
+     question at once, so a normal sign-in is never held behind a splash. */
+  F.known = function () { var b = null; try { b = getCurrentBizRecord(); } catch (e) { b = null; } return !!(b && b.subscriptionStatus); };
+  F.checkCard = function () {
+    var box = F.el('ftSubscriptionBootGate');
+    if (!box) { box = document.createElement('div'); box.id = 'ftSubscriptionBootGate'; box.className = 'modal'; box.style.cssText = 'z-index:100001;background:var(--bg)'; box.innerHTML = '<div style="text-align:center"><h3>FinTrack Business</h3><p>Checking your subscription...</p></div>'; document.body.appendChild(box); }
+    return box;
+  };
+  /* Show the surface again. The subscription lock itself is untouched: it stays
+     in force wherever the saved business record says it applies. */
+  window.ftSubscriptionRelease = function () {
+    clearTimeout(checkTimer); clearTimeout(releaseTimer);
+    var box = F.el('ftSubscriptionBootGate'); if (box) box.remove();
+    document.body.classList.remove('ft-sub-checking');
+    try { ftRenderAccessLock(); } catch (e) {}
+  };
   window.ftSubscriptionBootGate = function () {
     if (platformAdminUser) return;
-    readyBiz = ''; document.body.classList.add('ft-sub-checking');
-    var box = F.el('ftSubscriptionBootGate');
-    if (!box) { box = document.createElement('div'); box.id = 'ftSubscriptionBootGate'; box.className = 'modal'; box.style.cssText = 'z-index:100001;background:var(--bg)'; box.innerHTML = '<div style="text-align:center"><h3>FinTrack Business</h3><p>Checking your subscription...</p><p id="ftSubCheckError" style="margin-top:12px"></p></div>'; document.body.appendChild(box); }
+    readyBiz = '';
+    if (F.known()) { window.ftSubscriptionReady(); return; }
+    document.body.classList.add('ft-sub-checking');
+    clearTimeout(checkTimer); clearTimeout(releaseTimer);
+    checkTimer = setTimeout(function () { if (document.body.classList.contains('ft-sub-checking')) F.checkCard(); }, 250);
+    /* A slow or refused cloud read must never keep anyone out of the app. */
+    releaseTimer = setTimeout(function () { if (document.body.classList.contains('ft-sub-checking')) window.ftSubscriptionRelease(); }, 4000);
   };
-  window.ftSubscriptionCheckFailed = function () { var message = F.el('ftSubCheckError'); if (message) { message.textContent = 'Your subscription could not be checked. Please reconnect and reload; operational pages remain locked until the saved subscription is available.'; var retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn-primary'; retry.textContent = 'Retry'; retry.onclick = function () { location.reload(); }; message.appendChild(retry); } };
-  window.ftSubscriptionReady = function () { readyBiz = F.bid(); ftRenderAccessLock(); var g = F.el('ftSubscriptionBootGate'); if (g) g.remove(); document.body.classList.remove('ft-sub-checking'); };
+  window.ftSubscriptionCheckFailed = function () { window.ftSubscriptionRelease(); };
+  window.ftSubscriptionReady = function () { readyBiz = F.bid(); clearTimeout(checkTimer); clearTimeout(releaseTimer); ftRenderAccessLock(); var g = F.el('ftSubscriptionBootGate'); if (g) g.remove(); document.body.classList.remove('ft-sub-checking'); };
   var priorRender = ftRenderAccessLock;
   ftRenderAccessLock = window.ftRenderAccessLock = function () {
     priorRender();
@@ -14765,6 +14786,7 @@ if (typeof __ftSwitchTab === 'function') {
   var allowed = function (n) { return n && n.closest && n.closest('#ftAccessLock,#paSubmitPaymentModal,#ftNotifOverlay,#ftSubscriptionBootGate'); };
   ['click','input','change','keydown','focusin','submit'].forEach(function (name) {
     document.addEventListener(name, function (e) {
+      if (!currentUser || platformAdminUser) return;
       if ((!F.hard() && !document.body.classList.contains('ft-sub-checking')) || allowed(e.target)) return;
       e.preventDefault(); e.stopImmediatePropagation(); if (name === 'focusin' && e.target.blur) e.target.blur();
     }, true);
