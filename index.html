@@ -2104,7 +2104,7 @@ html, body { background-color: transparent !important; background-image: none !i
       <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Override any staff member's daily attendance. Deductions apply instantly to salary: Absent = 100% of one day's basic salary, Half Day = 50%. Present, Approved Leave, Holiday and Sundays have no deduction. Choose "— No Override (Auto) —" to remove an override. Automatic login marking never overwrites these overrides, and holidays or non-working days are never marked Absent automatically.</p>
       <div style="display: flex; align-items: center; gap: 10px; background: var(--accent-amber-bg); border: 1px solid var(--accent-amber); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 16px;">
         <input type="checkbox" id="attExtrasStaffVisibilityToggle" onchange="setAttendanceExtrasVisibility(this.checked)" style="width: 18px; height: 18px; cursor: pointer;">
-        <label for="attExtrasStaffVisibilityToggle" style="margin: 0; color: var(--accent-amber); font-size: 0.8rem; cursor: pointer;">Staff Visibility: show Half Day, Approved Leave &amp; Total Deductions boxes to Staff</label>
+        <label for="attExtrasStaffVisibilityToggle" style="margin: 0; color: var(--accent-amber); font-size: 0.8rem; cursor: pointer;">Staff Visibility: show the attendance summary boxes (Total Working Days, Sunday Off, On Time, Late, Absent, Half Day, Approved Leave) and Total Deductions to Staff</label>
       </div>
       <div id="attMgmtSummary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px;"></div>
       <!-- BUSINESS-SPECIFIC ATTENDANCE TIMING & RULES (ADMIN ONLY) -->
@@ -8986,7 +8986,8 @@ const FIREBASE_CONFIG = {
     appData.attendanceExtrasVisibleForStaff = !!checked;
     saveData();
     refreshAllViews();
-    alert(checked ? 'Staff can now view the Half Day, Approved Leave and Total Deductions boxes.' : 'Staff can no longer view the Half Day, Approved Leave and Total Deductions boxes.');
+    alert(checked ? 'Staff can now view the attendance summary boxes (Total Working Days, Sunday Off, On Time, Late, Absent, Half Day and Approved Leave) and Total Deductions.' : 'Staff can no longer view the attendance summary boxes or Total Deductions.');
+    if (window.ftApplyStaffProfileDetails) window.ftApplyStaffProfileDetails();
   }
 
   /* Staff access control: update balances & settle receivables (Admin toggle) */
@@ -10900,10 +10901,10 @@ function approvePayment() {
     var __nid = 'v_' + Date.now().toString(36);
     var __msg = 'The account subscription is being verified by the FinTrack Platform Administrator. Your subscription is now active until ' + expiryStr + '.';
     platformData.notifications = platformData.notifications || {};
-    platformData.notifications[__nid] = { id: __nid, type: 'individual', businessId: p.businessId, subject: 'Subscription verified', message: __msg, senderName: 'Platform Administrator', senderRole: 'Platform Administrator', audience: 'admin', sentAt: Date.now(), publishDate: '', expiryDate: '', totalTargets: 1, readBy: {} };
+    platformData.notifications[__nid] = { id: __nid, type: 'individual', businessId: p.businessId, subject: 'Subscription verified', message: __msg, senderName: 'Platform Administrator', senderRole: 'Platform Administrator', audience: 'admin_staff', sentAt: Date.now(), publishDate: '', expiryDate: '', totalTargets: 1, readBy: {} };
     savePlatformData();
     var __r = db();
-    if (__r) __r.ref('atmos_platform_admin/businesses/' + p.businessId + '/inbox/' + __nid).update({ id: __nid, subject: 'Subscription verified', message: __msg, senderName: 'Platform Administrator', senderRole: 'Platform Administrator', audience: 'admin', sentAt: Date.now(), publishAt: 0, expiryAt: 0 }).catch(function () {});
+    if (__r) __r.ref('atmos_platform_admin/businesses/' + p.businessId + '/inbox/' + __nid).update({ id: __nid, subject: 'Subscription verified', message: __msg, senderName: 'Platform Administrator', senderRole: 'Platform Administrator', audience: 'admin_staff', sentAt: Date.now(), publishAt: 0, expiryAt: 0 }).catch(function () {});
   } catch (e) {}
   alert('Payment approved! Subscription activated.\n\nPlan: '+planInfo.name+'\nStart Date: '+getISTDateStr(startDate)+'\nExpiry Date: '+expiryStr+'\n\nRenewal calculated in calendar months. The subscription will expire at the end of '+expiryStr+'.');
   closePaPaymentModal();
@@ -12475,8 +12476,13 @@ window.addEventListener('DOMContentLoaded', function() {
         var exp = Number(n.expiryAt) || dayMs(n.expiryDate);
         if (exp && t > exp) return;
         if (rc.readAt && t - rc.readAt > 4 * 86400000) return;
-        if (n.audience === 'admin' && !u.isAdmin) return;
-        if (n.audience === 'selected' && (n.businessIds || []).indexOf(activeBiz()) < 0) return;
+        /* A notice reaches staff only when it is addressed to staff. An admin-only
+           message, or a legacy message saved without an audience, stays with the
+           business administrator and is never shown in a staff account. */
+        var __aud = n.audience || '';
+        if (!u.isAdmin && __aud !== 'admin_staff' && __aud !== 'staff' && __aud !== 'all') return;
+        if (u.isAdmin && __aud === 'staff') return;
+        if (__aud === 'selected' && (n.businessIds || []).indexOf(activeBiz()) < 0) return;
         var pub = Number(n.publishAt) || 0; if (pub && t < pub) return;
         out.push({ id: id, subject: n.subject || '(no subject)', message: n.message || '', sender: n.senderName || 'Platform Administrator', role: n.senderRole || 'Platform Administrator', at: Number(n.sentAt) || 0, scope: 'pa', readAt: rc.readAt });
       });
@@ -12803,7 +12809,7 @@ window.addEventListener('DOMContentLoaded', function() {
       c.style.cssText = 'border-left:5px solid var(--primary)';
       c.innerHTML = '<h3 style="font-size:1rem;font-weight:900;color:var(--atmos-navy);margin-bottom:12px"><i class="fa-solid fa-bullhorn" style="color:var(--accent-green)"></i> Send Announcement</h3>' +
         '<div class="form-group"><label>Target Business</label><select id="ftAnnTarget" onchange="document.getElementById(\'ftAnnBizWrap\').style.display=this.value===\'selected\'?\'block\':\'none\'"><option value="all">All Businesses</option><option value="active">Active Businesses (last 7 days)</option><option value="selected">Selected Businesses</option></select><div id="ftAnnBizWrap" style="display:none;margin-top:8px;max-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px">' + bizOptionsHtml() + '</div></div>' +
-        '<div class="form-group"><label>Target Audience</label><select id="ftAnnAudience"><option value="admin">Admin Only</option><option value="admin_staff">Admin and Staff</option></select></div>' +
+        '<div class="form-group"><label>Target Audience</label><select id="ftAnnAudience"><option value="admin">Admin Only</option><option value="staff">Staff Only</option><option value="admin_staff">Admin and Staff</option></select></div>' +
         '<div class="form-group"><label>Subject</label><input type="text" id="ftAnnSubject" placeholder="Announcement subject"></div>' +
         '<div class="form-group"><label>Message</label><textarea id="ftAnnMessage" rows="5" placeholder="Enter announcement message"></textarea></div>' +
         '<div style="display:flex;gap:12px;flex-wrap:wrap"><div class="form-group" style="flex:1"><label>Publish Date (optional)</label><input type="date" id="ftAnnPublish"></div><div class="form-group" style="flex:1"><label>Expiry Date (optional)</label><input type="date" id="ftAnnExpiry"></div></div>' +
@@ -13853,12 +13859,17 @@ window.ftRenderPdf = function (node, filename, opt) {
     clone.style.boxShadow = 'none';
     holder.appendChild(clone);
     document.body.appendChild(holder);
-    h2c(clone, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false, windowWidth: width + 40, scrollX: 0, scrollY: 0 })
+    /* A higher render scale keeps headings, figures and tables sharp on paper.
+       The pixel budget keeps a very long report inside the canvas limits of a
+       phone or tablet, where a larger canvas would fail to draw at all. */
+    var __cssHeight = Math.max(1, clone.scrollHeight || clone.offsetHeight || 1);
+    var __scale = ((width * 3) * (__cssHeight * 3) <= 11000000) ? 3 : (((width * 2.5) * (__cssHeight * 2.5) <= 11000000) ? 2.5 : 2);
+    h2c(clone, { scale: __scale, backgroundColor: '#ffffff', useCORS: true, logging: false, windowWidth: width + 40, scrollX: 0, scrollY: 0 })
       .then(function (canvas) {
         var pdf = new J('p', 'mm', 'a4');
         var pageW = 210, pageH = 297;
         var imgH = canvas.height * pageW / canvas.width;
-        var img = canvas.toDataURL('image/jpeg', 0.95);
+        var img = canvas.toDataURL('image/jpeg', 0.98);
         var pages = Math.max(1, Math.ceil(imgH / pageH));
         for (var p = 0; p < pages; p++) {
           if (p > 0) pdf.addPage();
@@ -14575,8 +14586,10 @@ if (typeof __ftSwitchTab === 'function') {
     b.subscriptionPlan = F.planForDays(days); b.approvedDurationDays = days;
     return { activationAt:now, startDate:F.date(base), expiryDate:F.date(end), expiryAt:end, approvedDays:days, previousRemainingDays:before, totalDays:before+days };
   };
-  F.notice = function (root, bid, id, subject, message, now) {
-    var n = { id:id,subject:subject,message:message,senderName:(root.credentials || {}).name || 'Platform Administrator',senderRole:'Platform Administrator',audience:'admin',sentAt:now,publishAt:0,expiryAt:0 };
+  /* Audience decides who receives the message: a notice addressed to the business
+     administrator alone stays out of staff accounts. */
+  F.notice = function (root, bid, id, subject, message, now, audience) {
+    var n = { id:id,subject:subject,message:message,senderName:(root.credentials || {}).name || 'Platform Administrator',senderRole:'Platform Administrator',audience:audience || 'admin',sentAt:now,publishAt:0,expiryAt:0 };
     var b = root.businesses[bid]; b.inbox = b.inbox || {}; b.inbox[id] = n;
     root.notifications = root.notifications || {}; root.notifications[id] = Object.assign({},n,{businessId:bid,type:'individual',totalTargets:1,readBy:{}});
   };
@@ -14647,7 +14660,7 @@ if (typeof __ftSwitchTab === 'function') {
         F.creditReferral(root,bid,now,Number(options.amount)||0);
       }
       root.subscriptionHistory[nid] = Object.assign({},a,{businessId:bid,source:record.source,paymentId:p?nid:'',approvedPlan:b.subscriptionPlan});
-      F.notice(root,bid,'decision_' + nid,'Subscription activated',F.activationText(record,a,!p),now); F.reconcile(root,now);
+      F.notice(root,bid,'decision_' + nid,'Subscription activated',F.activationText(record,a,!p),now,'admin_staff'); F.reconcile(root,now);
       return root;
     },undefined,false);
     if (!res.committed) throw new Error(message || 'The change could not be saved. Please retry.');
@@ -14849,6 +14862,146 @@ if (typeof __ftSwitchTab === 'function') {
   };
   var original = window.appLogout;
   if (typeof original === 'function') window.appLogout = function () { hold(); return original.apply(this, arguments); };
+})();
+
+</script>
+<script id="ftRequestedUpdate5">
+
+/* FINTRACK REQUESTED UPDATE: staff profile attendance details, financial
+   privacy beside Total Payable, and the widened Staff Visibility setting.
+   No report, salary, attendance or notification data is written here. */
+(function () {
+  function byId(id) { return document.getElementById(id); }
+  var css =
+    '#ftStaffFinanceRow .ft-finance-blur{filter:blur(7px);user-select:none}' +
+    '#ftProfToggle:hover{background:var(--border)}' +
+    '#ftStaffFinanceEye:hover{color:var(--atmos-navy)}';
+  function ensureStyle() {
+    if (byId('ftStaffUpgradeStyle')) return;
+    var s = document.createElement('style');
+    s.id = 'ftStaffUpgradeStyle';
+    s.textContent = css;
+    document.head.appendChild(s);
+  }
+  function isStaff() { try { return !!(currentUser && currentUser.role === 'Staff'); } catch (e) { return false; } }
+  /* Administrator always sees the boxes; staff see them only while the
+     Business Administrator has Staff Visibility switched on. */
+  function summaryAllowed() {
+    try { return !isStaff() || (appData && appData.attendanceExtrasVisibleForStaff === true); } catch (e) { return true; }
+  }
+
+  /* The overview stays compact: the attendance details open only from the arrow. */
+  var open = false;
+  var financeHidden = false;
+
+  function blocks() {
+    var summary = null, head = null, tableWrap = null;
+    var first = byId('profTotalWorkingDays');
+    if (first && first.parentElement && first.parentElement.parentElement) summary = first.parentElement.parentElement;
+    var tbody = byId('profDetailedAttendanceTableBody');
+    var table = (tbody && tbody.closest) ? tbody.closest('table') : null;
+    if (table) {
+      tableWrap = table.parentElement;
+      head = tableWrap ? tableWrap.previousElementSibling : null;
+      if (head && (head.tagName !== 'H4' || String(head.textContent).indexOf('Attendance Logs') < 0)) head = null;
+    }
+    return { summary: summary, head: head, tableWrap: tableWrap };
+  }
+
+  function ensureToggle() {
+    if (byId('ftProfToggle')) return;
+    var titles = document.querySelectorAll('#hrTab h3');
+    for (var i = 0; i < titles.length; i++) {
+      if (String(titles[i].textContent).indexOf('Staff Profile Overview') < 0) continue;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.id = 'ftProfToggle';
+      b.title = 'Show attendance details';
+      b.setAttribute('aria-label', 'Show or hide attendance details');
+      b.style.cssText = 'border:1px solid var(--border);background:var(--bg);color:var(--atmos-navy);width:26px;height:26px;border-radius:50%;margin-left:8px;cursor:pointer;vertical-align:middle;line-height:1';
+      b.innerHTML = '<i class="fa-solid fa-chevron-down" id="ftProfToggleIcon"></i>';
+      b.onclick = function () { open = !open; apply(); };
+      titles[i].appendChild(b);
+      return;
+    }
+  }
+
+  /* Eye beside Total Payable: hides and reveals the financial amounts of the
+     profile being shown, the same way the dashboard summary privacy works. */
+  function financeValues() {
+    var row = byId('ftStaffFinanceRow');
+    if (row) return row.querySelectorAll('#profBasicSalary,#profCollection,#profIncentive,#profTotalDeductions,#profPayable');
+    return [];
+  }
+  function markFinance() {
+    var values = financeValues();
+    for (var i = 0; i < values.length; i++) {
+      if (financeHidden) values[i].classList.add('ft-finance-blur');
+      else values[i].classList.remove('ft-finance-blur');
+    }
+    var eye = byId('ftStaffFinanceEye');
+    if (eye) {
+      eye.className = financeHidden ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+      eye.title = financeHidden ? 'Show financial amounts' : 'Hide financial amounts';
+    }
+  }
+  function ensureFinanceRow() {
+    var row = byId('ftStaffFinanceRow');
+    if (row || !byId('profPayable')) return;
+    var tile = byId('profPayable').parentElement;
+    var grid = tile ? tile.parentElement : null;
+    if (grid) grid.id = 'ftStaffFinanceRow';
+  }
+  function ensureFinanceEye() {
+    if (byId('ftStaffFinanceEye')) return;
+    var value = byId('profPayable');
+    if (!value || !value.parentElement) return;
+    var tile = value.parentElement;
+    var eye = document.createElement('i');
+    eye.id = 'ftStaffFinanceEye';
+    eye.className = 'fa-solid fa-eye';
+    eye.setAttribute('role', 'button');
+    eye.setAttribute('aria-label', 'Hide or show financial amounts');
+    eye.title = 'Hide financial amounts';
+    eye.style.cssText = 'float:right;cursor:pointer;color:var(--text-muted);font-size:.8rem';
+    eye.onclick = function () { financeHidden = !financeHidden; markFinance(); };
+    var label = tile.querySelector('span');
+    if (label && label.parentNode === tile) tile.insertBefore(eye, label.nextSibling);
+    else tile.insertBefore(eye, value);
+  }
+
+  function apply() {
+    ensureStyle();
+    ensureToggle();
+    ensureFinanceRow();
+    ensureFinanceEye();
+    var b = blocks();
+    var showSummary = open && summaryAllowed();
+    if (b.summary) b.summary.style.display = showSummary ? '' : 'none';
+    if (b.tableWrap) b.tableWrap.style.display = open ? '' : 'none';
+    if (b.head) b.head.style.display = open ? '' : 'none';
+    var icon = byId('ftProfToggleIcon');
+    if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+    var btn = byId('ftProfToggle');
+    if (btn) btn.title = open ? 'Hide attendance details' : 'Show attendance details';
+    markFinance();
+  }
+
+  window.ftApplyStaffProfileDetails = apply;
+  window.ftToggleStaffProfileDetails = function () { open = !open; apply(); };
+  window.ftToggleStaffFinancePrivacy = function () { financeHidden = !financeHidden; markFinance(); };
+
+  /* Every staff profile render keeps the chosen state and the setting. */
+  var render = window.renderHrStaffProfileView;
+  if (typeof render === 'function') {
+    window.renderHrStaffProfileView = function () {
+      var result = render.apply(this, arguments);
+      try { apply(); } catch (e) {}
+      return result;
+    };
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply);
+  else apply();
 })();
 
 </script>
