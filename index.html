@@ -14873,8 +14873,15 @@ if (typeof __ftSwitchTab === 'function') {
 (function () {
   function byId(id) { return document.getElementById(id); }
   var css =
+    /* The attendance boxes always sit in a row across the card, at every screen
+       width, instead of falling into a single vertical list. */
+    '#ftAttSummaryRow{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr))!important;gap:10px!important}' +
+    '#ftAttSummaryRow.ft-att-hidden{display:none!important}' +
     '#ftStaffFinanceRow .ft-finance-blur{filter:blur(7px);user-select:none}' +
-    '#ftProfToggle:hover{background:var(--border)}' +
+    /* A bare arrow, so there is no circle around it to look uneven. */
+    '#ftProfToggle{border:0;background:transparent;color:var(--atmos-navy);padding:6px 12px;cursor:pointer;line-height:1}' +
+    '#ftProfToggle i{display:block;font-size:20px;line-height:1}' +
+    '#ftProfToggle:hover{opacity:.65}' +
     '#ftStaffFinanceEye:hover{color:var(--atmos-navy)}';
   function ensureStyle() {
     if (byId('ftStaffUpgradeStyle')) return;
@@ -14921,7 +14928,7 @@ if (typeof __ftSwitchTab === 'function') {
     b.id = 'ftProfToggle';
     b.title = 'Show attendance details';
     b.setAttribute('aria-label', 'Show or hide attendance details');
-    b.style.cssText = 'border:1px solid var(--border);background:var(--bg);color:var(--atmos-navy);width:30px;height:30px;border-radius:50%;cursor:pointer;line-height:1';
+    b.style.cssText = 'border:0;background:transparent;color:var(--atmos-navy);padding:6px 12px;cursor:pointer;line-height:1';
     b.innerHTML = '<i class="fa-solid fa-chevron-down" id="ftProfToggleIcon"></i>';
     b.onclick = function () { open = !open; apply(); };
     row.appendChild(b);
@@ -14982,7 +14989,12 @@ if (typeof __ftSwitchTab === 'function') {
     ensureToggle(b.summary);
     /* The attendance boxes line up in a row between the salary area and the
        detailed logs, however narrow the screen is. */
-    if (b.summary) { b.summary.style.gridTemplateColumns = 'repeat(auto-fit, minmax(104px, 1fr))'; b.summary.style.display = showSummary ? '' : 'none'; }
+    if (b.summary) {
+      if (b.summary.id !== 'ftAttSummaryRow') b.summary.id = 'ftAttSummaryRow';
+      if (showSummary) b.summary.classList.remove('ft-att-hidden');
+      else b.summary.classList.add('ft-att-hidden');
+      b.summary.style.display = showSummary ? 'grid' : 'none';
+    }
     if (b.tableWrap) b.tableWrap.style.display = open ? '' : 'none';
     if (b.head) b.head.style.display = open ? '' : 'none';
     var icon = byId('ftProfToggleIcon');
