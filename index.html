@@ -1299,7 +1299,7 @@ html, body { background-color: transparent !important; background-image: none !i
           <form onsubmit="saveStaffMasterService(event)" class="mobile-restricted">
             <div class="form-group">
               <label>Service Category</label>
-              <select id="staffNewServiceCategory" onchange="updateStaffDeptFeeVisibility()">
+              <select id="staffNewServiceCategory">
                 <option value="Standard Services">Standard Services</option>
                 <option value="Custom Utility & Bill Services">Custom Utility & Bill Services (KSEB, KWA, etc.)</option>
               </select>
@@ -1308,13 +1308,13 @@ html, body { background-color: transparent !important; background-image: none !i
               <label>Service Name</label>
               <input type="text" id="staffNewServiceName" placeholder="Enter the service name" required>
             </div>
-            <div class="form-group">
-              <label>Standard Service Charge (₹)</label>
-              <input type="number" id="staffNewServicePrice" min="0" placeholder="Enter the amount" required>
-            </div>
-            <div class="form-group" id="staffDeptFeeGroup" style="display: none;">
-              <label>Default Department Fee (₹)</label>
+            <div class="form-group" id="staffDeptFeeGroup">
+              <label>Department Fee (₹)</label>
               <input type="number" id="staffNewServiceDeptFee" min="0" value="0" placeholder="Enter the amount">
+            </div>
+            <div class="form-group">
+              <label>Service Charge (₹)</label>
+              <input type="number" id="staffNewServicePrice" min="0" placeholder="Enter the amount" required>
             </div>
             <button type="submit" class="btn-primary"><i class="fa-solid fa-plus"></i> Add to Master Catalog</button>
           </form>
@@ -1324,7 +1324,7 @@ html, body { background-color: transparent !important; background-image: none !i
           <div style="overflow-x: auto;">
             <table>
               <thead>
-                <tr><th>Category</th><th>Service Name</th><th>Price</th><th>Actions</th></tr>
+                <tr><th>Category</th><th>Service Name</th><th>Department Fee</th><th>Service Charge</th><th>Actions</th></tr>
               </thead>
               <tbody id="staffMasterServicesTable"></tbody>
             </table>
@@ -2374,7 +2374,7 @@ html, body { background-color: transparent !important; background-image: none !i
             <input type="hidden" id="editServiceId" value="">
             <div class="form-group">
               <label>Service Category</label>
-              <select id="newServiceCategory" onchange="updateAdminDeptFeeVisibility()">
+              <select id="newServiceCategory">
                 <option value="Standard Services">Standard Services</option>
                 <option value="Custom Utility & Bill Services">Custom Utility & Bill Services (KSEB, KWA, etc.)</option>
               </select>
@@ -2383,13 +2383,13 @@ html, body { background-color: transparent !important; background-image: none !i
               <label>Service Name</label>
               <input type="text" id="newServiceName" placeholder="Enter the service name" required>
             </div>
-            <div class="form-group">
-              <label>Standard Service Charge (₹)</label>
-              <input type="number" id="newServicePrice" min="0" placeholder="Enter the amount" required>
-            </div>
-            <div class="form-group" id="adminDeptFeeGroup" style="display: none;">
-              <label>Default Department Fee (₹)</label>
+            <div class="form-group" id="adminDeptFeeGroup">
+              <label>Department Fee (₹)</label>
               <input type="number" id="newServiceDeptFee" min="0" value="0" placeholder="Enter the amount">
+            </div>
+            <div class="form-group">
+              <label>Service Charge (₹)</label>
+              <input type="number" id="newServicePrice" min="0" placeholder="Enter the amount" required>
             </div>
             <button type="submit" class="btn-admin" id="saveServiceBtn">Add to Master Catalog</button>
           </form>
@@ -2401,7 +2401,7 @@ html, body { background-color: transparent !important; background-image: none !i
           <div class="catalog-scroll" id="masterCatalogScroll" tabindex="0" role="region" aria-label="Master service catalog. Five entries are shown; scroll inside the list for more.">
             <table>
               <thead>
-                <tr><th>Category</th><th>Service Name</th><th>Price</th><th>Actions</th></tr>
+                <tr><th>Category</th><th>Service Name</th><th>Department Fee</th><th>Service Charge</th><th>Actions</th></tr>
               </thead>
               <tbody id="masterServicesTable"></tbody>
             </table>
@@ -6102,7 +6102,7 @@ const FIREBASE_CONFIG = {
       category: cat,
       name: name,
       price: price,
-      deptFee: (cat === 'Custom Utility & Bill Services') ? deptFee : 0
+      deptFee: deptFee
     });
 
     saveData();
@@ -8199,24 +8199,16 @@ const FIREBASE_CONFIG = {
   /* Show/hide the Department Fee field in the Admin catalog form
      based on the selected category: Standard = hidden, Custom = visible */
   function updateAdminDeptFeeVisibility() {
-    const cat = document.getElementById('newServiceCategory').value;
+    /* The department fee is asked for every service, standard or custom. */
     const group = document.getElementById('adminDeptFeeGroup');
-    if (!group) return;
-    group.style.display = (cat === 'Custom Utility & Bill Services') ? 'block' : 'none';
-    if (cat !== 'Custom Utility & Bill Services') {
-      document.getElementById('newServiceDeptFee').value = 0;
-    }
+    if (group) group.style.display = 'block';
   }
 
   /* Show/hide the Department Fee field in the Staff catalog form */
   function updateStaffDeptFeeVisibility() {
-    const cat = document.getElementById('staffNewServiceCategory').value;
+    /* The department fee is asked for every service, standard or custom. */
     const group = document.getElementById('staffDeptFeeGroup');
-    if (!group) return;
-    group.style.display = (cat === 'Custom Utility & Bill Services') ? 'block' : 'none';
-    if (cat !== 'Custom Utility & Bill Services') {
-      document.getElementById('staffNewServiceDeptFee').value = 0;
-    }
+    if (group) group.style.display = 'block';
   }
 
   function saveMasterService(e) {
@@ -8233,7 +8225,7 @@ const FIREBASE_CONFIG = {
         s.category = cat;
         s.name = name;
         s.price = price;
-        s.deptFee = (cat === 'Custom Utility & Bill Services') ? deptFee : 0;
+        s.deptFee = deptFee;
       }
     } else {
       appData.masterServices.push({
@@ -8241,7 +8233,7 @@ const FIREBASE_CONFIG = {
         category: cat,
         name: name,
         price: price,
-        deptFee: (cat === 'Custom Utility & Bill Services') ? deptFee : 0
+        deptFee: deptFee
       });
     }
 
@@ -15191,6 +15183,80 @@ if (typeof __ftSwitchTab === 'function') {
 </script>
 <script id="ftRequestedUpdate7">
 
+/* FINTRACK REQUESTED UPDATE: one order and one set of columns for every
+   service catalogue. */
+(function () {
+  var STANDARD = 'Standard Services';
+  /* One order for every catalogue list: the standard services first, each group
+     by service name A to Z, so a list never depends on when an entry was added. */
+  window.ftCatalogSort = function (list) {
+    return (Array.isArray(list) ? list.slice() : []).sort(function (a, b) {
+      var ac = (a && a.category === STANDARD) ? 0 : 1, bc = (b && b.category === STANDARD) ? 0 : 1;
+      if (ac !== bc) return ac - bc;
+      return String((a || {}).name || '').localeCompare(String((b || {}).name || ''), undefined, { sensitivity: 'base', numeric: true });
+    });
+  };
+  window.ftCatalogOrder = function () { return window.ftCatalogSort(appData.masterServices); };
+  var esc = function (v) { var n = document.createElement('span'); n.textContent = String(v == null ? '' : v); return n.innerHTML.replace(/"/g, '&quot;'); };
+  var money = function (v) { return (Number(v) || 0).toFixed(2); };
+  /* Category, service name, department fee, service charge and the actions. */
+  function fill(tbody, list, staff) {
+    tbody.innerHTML = '';
+    list.forEach(function (s) {
+      var tr = document.createElement('tr');
+      var restricted = staff ? ' class="mobile-restricted"' : '';
+      var edit = staff ? 'editStaffMasterService' : 'editMasterService';
+      var remove = staff ? 'deleteStaffMasterService' : 'deleteMasterService';
+      tr.innerHTML = ''
+        + '<td><span class="badge badge-std-cat">' + esc(s.category) + '</span></td>'
+        + '<td><strong>' + esc(s.name) + '</strong></td>'
+        + '<td style="font-weight:800;">₹' + money(s.deptFee) + '</td>'
+        + '<td style="font-weight:800;">₹' + money(s.price) + '</td>'
+        + '<td>'
+        + '<button' + restricted + ' onclick="' + edit + '(\'' + s.id + '\')" style="background:none; color:var(--primary);"><i class="fa-solid fa-pen"></i></button>'
+        + '<button' + restricted + ' onclick="' + remove + '(\'' + s.id + '\')" style="background:none; color:var(--accent-rose);"><i class="fa-solid fa-trash"></i></button>'
+        + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+  /* Exactly five entries are visible; the rest scroll inside the box. */
+  function fit(tbody, boxId) {
+    var box = document.getElementById(boxId);
+    if (!box) return;
+    var headRow = box.querySelector('thead tr');
+    var rows = tbody.querySelectorAll('tr');
+    if (rows.length > 5) {
+      var hh = headRow ? headRow.getBoundingClientRect().height : 0;
+      var rh = rows[0].getBoundingClientRect().height || 0;
+      /* Heights are zero while the section is closed; the box is measured again when it opens. */
+      if (hh > 0 && rh > 0) box.style.maxHeight = Math.ceil(hh + rh * 5 + 2) + 'px';
+      else box.style.maxHeight = '';
+    } else {
+      box.style.maxHeight = 'none';
+    }
+  }
+  /* The business administrator's Master Catalog. */
+  window.renderMasterCatalogTable = function () {
+    var tbody = document.getElementById('masterServicesTable');
+    if (!tbody) return;
+    fill(tbody, window.ftCatalogOrder());
+    fit(tbody, 'masterCatalogScroll');
+  };
+  /* The staff Master Service Catalogue, in the same order and with the same columns. */
+  window.renderStaffMasterCatalog = function () {
+    var isStaff = currentUser && currentUser.role === 'Staff';
+    var card = document.getElementById('staffMasterCatalogCard');
+    if (card) card.style.display = isStaff ? 'block' : 'none';
+    if (!isStaff) return;
+    var tbody = document.getElementById('staffMasterServicesTable');
+    if (!tbody) return;
+    fill(tbody, window.ftCatalogOrder(), true);
+  };
+})();
+
+</script>
+<script id="ftRequestedUpdate8">
+
 /* FINTRACK REQUESTED UPDATE: central starter service catalogue (platform administrator). */
 (function () {
   var F = window.FTRequestedUpdate;
@@ -15200,7 +15266,7 @@ if (typeof __ftSwitchTab === 'function') {
   /* One catalogue entry, in the same shape the business catalogue already uses. */
   F.mscEntry = function (s) {
     var cat = ((s || {}).category === CUSTOM) ? CUSTOM : STANDARD;
-    return { id: String((s || {}).id || ''), category: cat, name: String((s || {}).name || '').trim(), price: Number((s || {}).price) || 0, deptFee: cat === CUSTOM ? (Number((s || {}).deptFee) || 0) : 0 };
+    return { id: String((s || {}).id || ''), category: cat, name: String((s || {}).name || '').trim(), price: Number((s || {}).price) || 0, deptFee: Number((s || {}).deptFee) || 0 };
   };
   /* The services the platform already ships as the starter catalog. */
   F.mscStarter = function () { try { return DEFAULT_SERVICES.map(F.mscEntry); } catch (e) { return []; } };
@@ -15208,7 +15274,11 @@ if (typeof __ftSwitchTab === 'function') {
   F.msc = function () {
     var saved = platformData.masterCatalog || {};
     var list = Array.isArray(saved.services) && saved.services.length ? saved.services : F.mscStarter();
-    return { services: list.map(F.mscEntry), stamp: Number(saved.stamp) || 0, publishedAt: Number(saved.publishedAt) || 0, publishedCount: Number(saved.publishedCount) || 0, updatedAt: Number(saved.updatedAt) || 0 };
+    /* The catalogue reads in one order everywhere it appears: the standard
+       services A to Z first, then the custom utility services. */
+    var entries = list.map(F.mscEntry);
+    if (window.ftCatalogSort) entries = window.ftCatalogSort(entries);
+    return { services: entries, stamp: Number(saved.stamp) || 0, publishedAt: Number(saved.publishedAt) || 0, publishedCount: Number(saved.publishedCount) || 0, updatedAt: Number(saved.updatedAt) || 0 };
   };
   /* Two entries are the same service when their name and category match. */
   F.mscRowKey = function (s) { return s && s.name ? (String(s.name).trim().toLowerCase() + '|' + String(s.category || '').trim().toLowerCase()) : ''; };
@@ -15227,11 +15297,11 @@ if (typeof __ftSwitchTab === 'function') {
     var record = { services: services, updatedAt: Date.now(), stamp: c.stamp, publishedAt: c.publishedAt, publishedCount: c.publishedCount };
     return firebase.database().ref('atmos_platform_admin/masterCatalog').set(record).then(function (result) { platformData.masterCatalog = record; return result; });
   };
+  /* The department fee is asked for every service prepared here, standard or
+     custom, so the field is never hidden and never cleared. */
   window.ftMscDeptFee = function () {
-    var group = el('ftMscDeptGroup'), field = el('ftMscDeptFee'), cat = (el('ftMscCategory') || {}).value;
-    if (!group) return;
-    group.style.display = cat === CUSTOM ? 'block' : 'none';
-    if (field && cat !== CUSTOM) field.value = 0;
+    var group = el('ftMscDeptGroup');
+    if (group) group.style.display = 'block';
   };
   F.mscFormClear = function () {
     if (!el('ftMscEditId')) return;
@@ -15301,7 +15371,7 @@ if (typeof __ftSwitchTab === 'function') {
     if (!body) return;
     var c = F.msc();
     body.innerHTML = c.services.length ? c.services.map(function (s) {
-      return '<tr><td><span class="badge badge-std-cat">' + esc(s.category) + '</span></td><td><strong>' + esc(s.name) + '</strong></td><td style="font-weight:800">' + s.price.toFixed(2) + '</td><td>' + s.deptFee.toFixed(2) + '</td><td><button type="button" onclick="ftMscEdit(\'' + s.id + '\')" style="background:none;color:var(--primary)"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="ftMscDelete(\'' + s.id + '\')" style="background:none;color:var(--accent-rose)"><i class="fa-solid fa-trash"></i></button></td></tr>';
+      return '<tr><td><span class="badge badge-std-cat">' + esc(s.category) + '</span></td><td><strong>' + esc(s.name) + '</strong></td><td style="font-weight:800">' + s.deptFee.toFixed(2) + '</td><td style="font-weight:800">' + s.price.toFixed(2) + '</td><td><button type="button" onclick="ftMscEdit(\'' + s.id + '\')" style="background:none;color:var(--primary)"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="ftMscDelete(\'' + s.id + '\')" style="background:none;color:var(--accent-rose)"><i class="fa-solid fa-trash"></i></button></td></tr>';
     }).join('') : '<tr><td colspan="5">No services prepared yet.</td></tr>';
     var meta = el('ftMscMeta');
     if (meta) meta.textContent = c.services.length + ' service(s) prepared - ' + Object.keys(platformData.businesses || {}).length + ' registered business(es) - ' + (c.publishedAt ? 'last published ' + new Date(c.publishedAt).toLocaleString('en-IN') + ' to ' + c.publishedCount + ' business(es)' : 'not published yet');
@@ -15317,13 +15387,13 @@ if (typeof __ftSwitchTab === 'function') {
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px">' +
       '<div><h4 style="font-size:.85rem;font-weight:800;margin-bottom:10px">Add / Edit Catalogue Service</h4>' +
       '<form onsubmit="ftMscSave(event)"><input type="hidden" id="ftMscEditId" value="">' +
-      '<div class="form-group"><label>Service Category</label><select id="ftMscCategory" onchange="ftMscDeptFee()"><option value="Standard Services">Standard Services</option><option value="Custom Utility & Bill Services">Custom Utility & Bill Services (KSEB, KWA, etc.)</option></select></div>' +
+      '<div class="form-group"><label>Service Category</label><select id="ftMscCategory"><option value="Standard Services">Standard Services</option><option value="Custom Utility & Bill Services">Custom Utility & Bill Services (KSEB, KWA, etc.)</option></select></div>' +
       '<div class="form-group"><label>Service Name</label><input type="text" id="ftMscName" placeholder="Enter the service name" required></div>' +
-      '<div class="form-group"><label>Service Charge</label><input type="number" id="ftMscPrice" min="0" step="0.01" placeholder="Enter the amount" required></div>' +
-      '<div class="form-group" id="ftMscDeptGroup" style="display:none"><label>Default Department Fee</label><input type="number" id="ftMscDeptFee" min="0" step="0.01" value="0"></div>' +
+      '<div class="form-group" id="ftMscDeptGroup"><label>Department Fee (₹)</label><input type="number" id="ftMscDeptFee" min="0" step="0.01" value="0" placeholder="Enter the amount"></div>' +
+      '<div class="form-group"><label>Service Charge (₹)</label><input type="number" id="ftMscPrice" min="0" step="0.01" placeholder="Enter the amount" required></div>' +
       '<button type="submit" class="btn-primary" id="ftMscSaveBtn" style="width:auto">Add to Central Catalog</button></form></div>' +
       '<div><h4 style="font-size:.85rem;font-weight:800;margin-bottom:10px">Central Catalogue</h4>' +
-      '<div class="catalog-scroll" id="ftMscScroll" tabindex="0" role="region" aria-label="Central master service catalogue"><table><thead><tr><th>Category</th><th>Service Name</th><th>Charge</th><th>Department Fee</th><th>Actions</th></tr></thead><tbody id="ftMscTableBody"></tbody></table></div></div>' +
+      '<div class="catalog-scroll" id="ftMscScroll" tabindex="0" role="region" aria-label="Central master service catalogue"><table><thead><tr><th>Category</th><th>Service Name</th><th>Department Fee</th><th>Service Charge</th><th>Actions</th></tr></thead><tbody id="ftMscTableBody"></tbody></table></div></div>' +
       '</div><p id="ftMscMeta" style="font-size:.74rem;color:var(--text-muted);margin-top:12px"></p>' +
       '<button type="button" class="btn-primary" style="width:auto;margin-top:6px" onclick="ftMscDeploy()"><i class="fa-solid fa-share-nodes"></i> Save to All Registered Businesses</button>' +
       '<p id="ftMscStatus" style="font-size:.78rem;font-weight:700;margin-top:10px"></p>';
