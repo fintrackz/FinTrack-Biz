@@ -3995,6 +3995,9 @@ const FIREBASE_CONFIG = {
           }
         }
         isFirebaseSyncActive = true;
+        /* The central starter catalogue is offered to this business's own
+           Master Catalog once its records are loaded. */
+        if (window.ftMasterCatalogSync) window.ftMasterCatalogSync();
       }, function (err) {
         console.error("Business data read failed:", err);
         var a = firebaseAuth();
@@ -9477,6 +9480,9 @@ function ftAcceptPublic(value) {
   /* The referral reward and milestone read the same in every account. */
   if (pub.referralConfig) platformData.referralConfig = pub.referralConfig;
   if (pub.introductoryOffer) platformData.introductoryOffer = pub.introductoryOffer;
+  /* The central starter catalogue prepared by the platform administrator. */
+  if (pub.masterCatalog) platformData.masterCatalog = pub.masterCatalog;
+  if (window.ftMasterCatalogSync) window.ftMasterCatalogSync();
   ftPublicLoaded = true;
   ftPublicChanged();
 }
@@ -9685,6 +9691,7 @@ function mirrorPublicPlatformSlice() {
     hasPlatformAdmin: !!platformData.credentials,
     platformAdminEmail: (platformData.credentials && platformData.credentials.email) || '',
     branding: platformData.branding || null,
+    masterCatalog: platformData.masterCatalog || (platformData.publicInfo || {}).masterCatalog || null,
     planPricing: platformData.planPricing || null,
     referralConfig: platformData.referralConfig || (platformData.publicInfo || {}).referralConfig || null,
     introductoryOffer: platformData.introductoryOffer || null,
@@ -14261,6 +14268,7 @@ if (typeof __ftSwitchTab === 'function') {
     { label: 'Referral Records', icon: 'fa-solid fa-user-group', kw: 'referral records codes successful balance credit platform', go: goPlatformArea('paSubscriptionsTab', 'ftPlatformReferrals'), platform: true },
     { label: 'Notifications', icon: 'fa-solid fa-bell', kw: 'notification announcement message platform', go: goPa('paNotificationsTab'), platform: true },
     { label: 'Reports & Limits', icon: 'fa-solid fa-chart-simple', kw: 'report limit usage storage', go: goPa('paReportsTab'), platform: true },
+    { label: 'Master Service Catalog', icon: 'fa-solid fa-layer-group', kw: 'master service catalog catalogue starter services department charge publish all businesses', go: goPlatformArea('paSettingsTab', 'ftMasterCatalogCard'), platform: true },
     { label: 'Settings', icon: 'fa-solid fa-gear', kw: 'settings platform branding configuration referral', go: goPa('paSettingsTab'), platform: true }
   ];
 
@@ -15178,6 +15186,191 @@ if (typeof __ftSwitchTab === 'function') {
     /* The splash is given a moment to paint before the page returns to the welcome screen. */
     setTimeout(function () { try { stockLogout.apply(self, args); } catch (e) { try { window.location.reload(); } catch (e2) {} } }, 700);
   };
+})();
+
+</script>
+<script id="ftRequestedUpdate7">
+
+/* FINTRACK REQUESTED UPDATE: central starter service catalogue (platform administrator). */
+(function () {
+  var F = window.FTRequestedUpdate;
+  var STANDARD = 'Standard Services', CUSTOM = 'Custom Utility & Bill Services', STAMP = 'FT_MASTER_CATALOG_APPLIED_';
+  var esc = F.esc, el = F.el;
+
+  /* One catalogue entry, in the same shape the business catalogue already uses. */
+  F.mscEntry = function (s) {
+    var cat = ((s || {}).category === CUSTOM) ? CUSTOM : STANDARD;
+    return { id: String((s || {}).id || ''), category: cat, name: String((s || {}).name || '').trim(), price: Number((s || {}).price) || 0, deptFee: cat === CUSTOM ? (Number((s || {}).deptFee) || 0) : 0 };
+  };
+  /* The services the platform already ships as the starter catalog. */
+  F.mscStarter = function () { try { return DEFAULT_SERVICES.map(F.mscEntry); } catch (e) { return []; } };
+  /* The prepared catalogue, or those starter services while nothing is prepared. */
+  F.msc = function () {
+    var saved = platformData.masterCatalog || {};
+    var list = Array.isArray(saved.services) && saved.services.length ? saved.services : F.mscStarter();
+    return { services: list.map(F.mscEntry), stamp: Number(saved.stamp) || 0, publishedAt: Number(saved.publishedAt) || 0, publishedCount: Number(saved.publishedCount) || 0, updatedAt: Number(saved.updatedAt) || 0 };
+  };
+  /* Two entries are the same service when their name and category match. */
+  F.mscRowKey = function (s) { return s && s.name ? (String(s.name).trim().toLowerCase() + '|' + String(s.category || '').trim().toLowerCase()) : ''; };
+  /* What this browser has already taken, remembered per business. */
+  F.mscKey = function () { try { var id = tenantId(); return id ? STAMP + id : ''; } catch (e) { return ''; } };
+  F.mscTaken = function () { var k = F.mscKey(); if (!k) return -1; try { return Number(localStorage.getItem(k)) || 0; } catch (e) { return 0; } };
+  F.mscTakenSave = function (stamp) { var k = F.mscKey(); if (!k) return; try { localStorage.setItem(k, String(stamp)); } catch (e) {} };
+  F.mscStatus = function (message, ok) { var box = el('ftMscStatus'); if (!box) return; box.textContent = message || ''; box.style.color = ok === false ? 'var(--accent-rose)' : 'var(--accent-green)'; };
+
+  /* ---------- THE PLATFORM ADMINISTRATOR'S CENTRAL CATALOGUE ---------- */
+  /* Add, edit and delete change only the central copy, which is kept with the
+     platform administrator records. A business is never touched until the
+     catalogue is published. */
+  F.mscPersist = function (services) {
+    var c = F.msc();
+    var record = { services: services, updatedAt: Date.now(), stamp: c.stamp, publishedAt: c.publishedAt, publishedCount: c.publishedCount };
+    return firebase.database().ref('atmos_platform_admin/masterCatalog').set(record).then(function (result) { platformData.masterCatalog = record; return result; });
+  };
+  window.ftMscDeptFee = function () {
+    var group = el('ftMscDeptGroup'), field = el('ftMscDeptFee'), cat = (el('ftMscCategory') || {}).value;
+    if (!group) return;
+    group.style.display = cat === CUSTOM ? 'block' : 'none';
+    if (field && cat !== CUSTOM) field.value = 0;
+  };
+  F.mscFormClear = function () {
+    if (!el('ftMscEditId')) return;
+    el('ftMscEditId').value = '';
+    el('ftMscName').value = '';
+    el('ftMscPrice').value = '';
+    el('ftMscDeptFee').value = 0;
+    el('ftMscSaveBtn').textContent = 'Add to Central Catalog';
+    window.ftMscDeptFee();
+  };
+  window.ftMscSave = function (event) {
+    if (event && event.preventDefault) event.preventDefault();
+    if (!platformAdminUser) return;
+    var id = el('ftMscEditId').value, name = el('ftMscName').value.trim();
+    if (!name) return F.mscStatus('Enter the service name.', false);
+    var entry = F.mscEntry({ id: id || ('c_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8)), category: el('ftMscCategory').value, name: name, price: el('ftMscPrice').value, deptFee: el('ftMscDeptFee').value });
+    var list = F.msc().services.filter(function (s) { return s.id !== entry.id; });
+    list.push(entry);
+    F.mscFormClear();
+    F.mscPersist(list).then(function () {
+      F.mscRefresh();
+      F.mscStatus('Catalogue saved. Use "Save to All Registered Businesses" to make it available in every business account.', true);
+    }, function (error) { F.mscStatus('The catalogue could not be saved. ' + ((error && error.message) || error) + ' Check the connection, then retry.', false); });
+  };
+  window.ftMscEdit = function (id) {
+    var s = F.msc().services.filter(function (x) { return x.id === id; })[0];
+    if (!s) return;
+    el('ftMscEditId').value = s.id;
+    el('ftMscCategory').value = s.category;
+    el('ftMscName').value = s.name;
+    el('ftMscPrice').value = s.price;
+    el('ftMscDeptFee').value = s.deptFee;
+    window.ftMscDeptFee();
+    el('ftMscSaveBtn').textContent = 'Update Catalogue Service';
+    F.mscStatus('Editing "' + s.name + '". Change the details and save, or delete the service.', true);
+  };
+  window.ftMscDelete = function (id) {
+    var s = F.msc().services.filter(function (x) { return x.id === id; })[0];
+    if (!s || !confirm('Remove "' + s.name + '" from the central catalogue?')) return;
+    var list = F.msc().services.filter(function (x) { return x.id !== id; });
+    F.mscPersist(list).then(function () {
+      F.mscRefresh();
+      F.mscStatus('Removed from the central catalogue. A business that already received it keeps its own copy until you remove it there.', true);
+    }, function (error) { F.mscStatus('The catalogue could not be saved. ' + ((error && error.message) || error), false); });
+  };
+  /* Publishing stamps the catalogue, so every business takes the services it
+     does not already have. Nothing existing is replaced or removed. */
+  window.ftMscDeploy = function () {
+    if (!platformAdminUser) return;
+    var c = F.msc();
+    if (!c.services.length) return F.mscStatus('Add at least one service before publishing the catalogue.', false);
+    var now = Date.now(), count = Object.keys(platformData.businesses || {}).length;
+    var record = { services: c.services, updatedAt: c.updatedAt || now, stamp: now, publishedAt: now, publishedCount: count };
+    try {
+      firebase.database().ref('atmos_platform_admin/masterCatalog').set(record);
+      firebase.database().ref('atmos_platform_admin/public/masterCatalog').set(record).then(function () {
+        platformData.masterCatalog = record;
+        F.mscRefresh();
+        F.mscStatus('Catalogue published to ' + count + ' registered business' + (count === 1 ? '' : 'es') + '. Each of them receives these ' + c.services.length + ' service(s) automatically, and stays free to edit or delete them.', true);
+      }, function (error) {
+        F.mscStatus('The catalogue could not be published. ' + ((error && error.message) || error) + ' Check the connection, then retry.', false);
+      });
+    } catch (e) { F.mscStatus('The catalogue could not be published. ' + ((e && e.message) || e), false); }
+  };
+  F.mscRefresh = function () {
+    var body = el('ftMscTableBody');
+    if (!body) return;
+    var c = F.msc();
+    body.innerHTML = c.services.length ? c.services.map(function (s) {
+      return '<tr><td><span class="badge badge-std-cat">' + esc(s.category) + '</span></td><td><strong>' + esc(s.name) + '</strong></td><td style="font-weight:800">' + s.price.toFixed(2) + '</td><td>' + s.deptFee.toFixed(2) + '</td><td><button type="button" onclick="ftMscEdit(\'' + s.id + '\')" style="background:none;color:var(--primary)"><i class="fa-solid fa-pen"></i></button><button type="button" onclick="ftMscDelete(\'' + s.id + '\')" style="background:none;color:var(--accent-rose)"><i class="fa-solid fa-trash"></i></button></td></tr>';
+    }).join('') : '<tr><td colspan="5">No services prepared yet.</td></tr>';
+    var meta = el('ftMscMeta');
+    if (meta) meta.textContent = c.services.length + ' service(s) prepared - ' + Object.keys(platformData.businesses || {}).length + ' registered business(es) - ' + (c.publishedAt ? 'last published ' + new Date(c.publishedAt).toLocaleString('en-IN') + ' to ' + c.publishedCount + ' business(es)' : 'not published yet');
+  };
+  F.mscCard = function () {
+    var host = el('paSettingsTab');
+    if (!host || !platformAdminUser || el('ftMasterCatalogCard')) return;
+    var card = document.createElement('div');
+    card.id = 'ftMasterCatalogCard';
+    card.className = 'app-card';
+    card.innerHTML = '<h3 style="font-size:1rem;font-weight:800;margin-bottom:8px"><i class="fa-solid fa-layer-group" style="color:var(--accent-purple)"></i> Master Service Catalog</h3>' +
+      '<p style="font-size:.8rem;color:var(--text-muted);margin-bottom:14px">Prepare the catalogue of service names, categories, charges and department fees that every registered business can start from. Publishing adds these services to each business\'s own Master Catalog, and a newly registered business receives the latest catalogue automatically. Nothing here is locked: every business can add, edit or delete any entry, including the ones published from here.</p>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px">' +
+      '<div><h4 style="font-size:.85rem;font-weight:800;margin-bottom:10px">Add / Edit Catalogue Service</h4>' +
+      '<form onsubmit="ftMscSave(event)"><input type="hidden" id="ftMscEditId" value="">' +
+      '<div class="form-group"><label>Service Category</label><select id="ftMscCategory" onchange="ftMscDeptFee()"><option value="Standard Services">Standard Services</option><option value="Custom Utility & Bill Services">Custom Utility & Bill Services (KSEB, KWA, etc.)</option></select></div>' +
+      '<div class="form-group"><label>Service Name</label><input type="text" id="ftMscName" placeholder="Enter the service name" required></div>' +
+      '<div class="form-group"><label>Service Charge</label><input type="number" id="ftMscPrice" min="0" step="0.01" placeholder="Enter the amount" required></div>' +
+      '<div class="form-group" id="ftMscDeptGroup" style="display:none"><label>Default Department Fee</label><input type="number" id="ftMscDeptFee" min="0" step="0.01" value="0"></div>' +
+      '<button type="submit" class="btn-primary" id="ftMscSaveBtn" style="width:auto">Add to Central Catalog</button></form></div>' +
+      '<div><h4 style="font-size:.85rem;font-weight:800;margin-bottom:10px">Central Catalogue</h4>' +
+      '<div class="catalog-scroll" id="ftMscScroll" tabindex="0" role="region" aria-label="Central master service catalogue"><table><thead><tr><th>Category</th><th>Service Name</th><th>Charge</th><th>Department Fee</th><th>Actions</th></tr></thead><tbody id="ftMscTableBody"></tbody></table></div></div>' +
+      '</div><p id="ftMscMeta" style="font-size:.74rem;color:var(--text-muted);margin-top:12px"></p>' +
+      '<button type="button" class="btn-primary" style="width:auto;margin-top:6px" onclick="ftMscDeploy()"><i class="fa-solid fa-share-nodes"></i> Save to All Registered Businesses</button>' +
+      '<p id="ftMscStatus" style="font-size:.78rem;font-weight:700;margin-top:10px"></p>';
+    host.appendChild(card);
+    F.mscRefresh();
+  };
+
+  /* ---------- DELIVERY INTO EVERY BUSINESS'S OWN CATALOGUE ---------- */
+  /* Only the services this business does not already have are added, matched by
+     name and category, so publishing twice never duplicates an entry and an
+     edited or renamed business entry is never replaced. */
+  F.mscDeliver = function () {
+    if (!currentUser || platformAdminUser || !isFirebaseSyncActive) return;
+    if (!appData || !Array.isArray(appData.masterServices)) return;
+    /* The same lock the app's own save already obeys. */
+    if (getSubscriptionState().locked) return;
+    var pub = (platformData.publicInfo || {}).masterCatalog;
+    if (!pub || !Array.isArray(pub.services) || !pub.services.length) return;
+    var stamp = Number(pub.stamp) || 0;
+    if (!stamp || stamp <= F.mscTaken()) return;
+    var known = {};
+    appData.masterServices.forEach(function (s) { known[F.mscRowKey(s)] = true; });
+    var added = [];
+    pub.services.forEach(function (raw) {
+      var s = F.mscEntry(raw), key = F.mscRowKey(s);
+      if (!key || known[key]) return;
+      known[key] = true;
+      added.push({ id: 'srv_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8), category: s.category, name: s.name, price: s.price, deptFee: s.deptFee });
+    });
+    if (added.length) {
+      appData.masterServices = appData.masterServices.concat(added);
+      saveData();
+      try { populateServiceDropdown(); renderMasterCatalogTable(); renderStaffMasterCatalog(); } catch (e) {}
+    }
+    F.mscTakenSave(stamp);
+  };
+  /* Called whenever this account's shared settings or its own records arrive. */
+  window.ftMasterCatalogSync = function () { try { F.mscDeliver(); } catch (e) { console.error('Starter service catalogue:', e); } };
+
+  var priorSettings = renderPASettings;
+  renderPASettings = window.renderPASettings = function () {
+    priorSettings.apply(this, arguments);
+    if (!platformAdminUser) return;
+    F.mscCard();
+    F.mscRefresh();
+  };
+  if (platformAdminUser) F.mscCard();
 })();
 
 </script>
