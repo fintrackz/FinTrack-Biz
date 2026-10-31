@@ -802,7 +802,7 @@ html, body { background-color: transparent !important; background-image: none !i
 <div style="background:var(--accent-amber-bg);border:1px solid var(--accent-amber);border-radius:var(--radius-md);padding:12px;margin-bottom:16px;font-size:.78rem;color:#92400e;text-align:left">
 <strong>What happens next?</strong><br>
 1. Pay by UPI QR.<br>
-2. Submit your payment method, mobile number, amount and screenshot.<br>
+2. Submit your payment method, mobile number and amount paid.<br>
 3. Your details go straight to platform support on WhatsApp.<br>
 4. The Main Platform Administrator verifies and restores full access.
 </div>
@@ -1367,9 +1367,11 @@ html, body { background-color: transparent !important; background-image: none !i
             <input type="date" id="serviceDateInput" required>
           </div>
 
-          <div class="form-group">
-            <label>Select Service</label>
-            <select id="serviceSelect" onchange="handleServiceSelectionChange()" required></select>
+          <div class="form-group" style="position: relative;">
+            <label>Search Service</label>
+            <input type="text" id="serviceSearchInput" placeholder="Search services" autocomplete="off" oninput="renderServiceSearchResults()" onfocus="renderServiceSearchResults()" required>
+            <div id="serviceSearchResults" hidden style="position: absolute; top: 100%; left: 0; right: 0; z-index: 30; max-height: 240px; overflow-y: auto; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow);"></div>
+            <select id="serviceSelect" onchange="handleServiceSelectionChange()" style="display: none;"></select>
           </div>
           
           <!-- CUSTOM SERVICE ENTRY OPTION -->
@@ -1493,6 +1495,15 @@ html, body { background-color: transparent !important; background-image: none !i
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;">
         <h3 style="font-size: 1.05rem; font-weight: 800;">Service Collections Log (Editable & Deletable)</h3>
         <div class="month-picker-box">
+          <label>Destination:</label>
+          <select id="serviceLogDestinationFilter" onchange="renderServicesTab()">
+            <option value="All">All</option>
+            <option value="Cash Drawer">Cash Drawer</option>
+            <option value="Bank UPI">Bank UPI</option>
+            <option value="Receivable">Receivable</option>
+          </select>
+        </div>
+        <div class="month-picker-box">
           <label>Filter Month:</label>
           <input type="month" id="serviceLogMonthPicker" onchange="renderServicesTab()">
         </div>
@@ -1508,7 +1519,7 @@ html, body { background-color: transparent !important; background-image: none !i
             <tr>
               <th>Date & Time</th>
               <th>Service Description</th>
-              <th>Dept Fee (₹)</th>
+              <th>Department Fee (₹)</th>
               <th>Service Charge (₹)</th>
               <th>Discount (₹)</th>
               <th>Total Pay (₹)</th>
@@ -2765,7 +2776,7 @@ html, body { background-color: transparent !important; background-image: none !i
 <div id="paAdminQr" style="background:#fff;padding:8px;border:1px solid var(--border);border-radius:var(--radius-md)"></div>
 <div style="font-size:.75rem;color:var(--text-muted)">Customers scan this QR to pay by UPI.<br><span style="font-size:.68rem">Payee: ATMOS Digital Solutions</span></div>
 </div>
-<p style="font-size:.8rem;color:var(--text-muted)">Business administrators submit transaction/reference ID and payment screenshot. Only verified approval from the Main Platform Administrator activates or extends a subscription.</p>
+<p style="font-size:.8rem;color:var(--text-muted)">Business administrators submit their payment details for verification. Only verified approval from the Main Platform Administrator activates or extends a subscription.</p>
 </div>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px">
 <div class="app-card"><h3 style="font-size:.9rem;font-weight:800;margin-bottom:10px">Subscription Plans — Normal Pricing</h3>
@@ -2919,6 +2930,16 @@ html, body { background-color: transparent !important; background-image: none !i
 <div class="form-group"><label>Introductory — 12 Months (₹)</label><input type="number" id="paPrice_introductory_12months" min="1" step="1"></div>
 </div>
 <button class="btn-primary" onclick="savePlanPricing()" style="width:auto;margin-top:14px"><i class="fa-solid fa-floppy-disk"></i> Save Plan Pricing</button>
+</div>
+<div class="app-card" style="border-left:5px solid #25D366">
+<h3 style="font-size:1rem;font-weight:800;margin-bottom:8px"><i class="fa-brands fa-whatsapp" style="color:#25D366"></i> WhatsApp Message Templates</h3>
+<p style="font-size:.8rem;color:var(--text-muted);margin-bottom:14px">These messages open in WhatsApp to the business administrator’s registered mobile number when you tap the WhatsApp icon beside a business’s subscription status in the Businesses directory. WhatsApp opens with the message ready — you always tap Send yourself, nothing is sent automatically. An in-app notification is also recorded for that business administrator.</p>
+<div class="form-group"><label>Free Trial</label><textarea id="paWaTpl_freeTrial" rows="3"></textarea><button class="btn-primary" onclick="saveWhatsAppTemplate('freeTrial')" style="width:auto;margin-top:6px;padding:5px 14px;font-size:.75rem"><i class="fa-solid fa-floppy-disk"></i> Save</button></div>
+<div class="form-group"><label>Trial Ending Soon</label><textarea id="paWaTpl_trialEndingSoon" rows="3"></textarea><button class="btn-primary" onclick="saveWhatsAppTemplate('trialEndingSoon')" style="width:auto;margin-top:6px;padding:5px 14px;font-size:.75rem"><i class="fa-solid fa-floppy-disk"></i> Save</button></div>
+<div class="form-group"><label>Subscription Ending Soon</label><textarea id="paWaTpl_subscriptionEndingSoon" rows="3"></textarea><button class="btn-primary" onclick="saveWhatsAppTemplate('subscriptionEndingSoon')" style="width:auto;margin-top:6px;padding:5px 14px;font-size:.75rem"><i class="fa-solid fa-floppy-disk"></i> Save</button></div>
+<div class="form-group"><label>Subscription Expired / Ended</label><textarea id="paWaTpl_subscriptionExpiredEnded" rows="3"></textarea><button class="btn-primary" onclick="saveWhatsAppTemplate('subscriptionExpiredEnded')" style="width:auto;margin-top:6px;padding:5px 14px;font-size:.75rem"><i class="fa-solid fa-floppy-disk"></i> Save</button></div>
+<div class="form-group"><label>Grace Period</label><textarea id="paWaTpl_gracePeriod" rows="3"></textarea><button class="btn-primary" onclick="saveWhatsAppTemplate('gracePeriod')" style="width:auto;margin-top:6px;padding:5px 14px;font-size:.75rem"><i class="fa-solid fa-floppy-disk"></i> Save</button></div>
+<p style="font-size:.72rem;color:var(--text-muted);margin-top:10px"><i class="fa-solid fa-circle-info"></i> An empty template falls back to its built-in message. Businesses with an active subscription that is not ending soon receive a fixed thank-you message.</p>
 </div>
 <div class="app-card" style="border-left:5px solid var(--atmos-red)">
 <h3 style="font-size:1rem;font-weight:800;margin-bottom:8px"><i class="fa-solid fa-trash-can" style="color:var(--atmos-red)"></i> Data Retention & Cleanup</h3>
@@ -3276,22 +3297,27 @@ html, body { background-color: transparent !important; background-image: none !i
 <div id="paSubmitPaymentModal" class="modal" style="display:none;z-index:2600;background:rgba(255,255,255,.97);backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px)">
 <div class="modal-card" style="max-width:540px;max-height:92vh;overflow-y:auto">
 <h3 style="font-size:1.1rem;font-weight:800;margin-bottom:6px">Submit UPI Payment</h3>
-<p style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px">Select a subscription plan, then scan the QR below with any UPI app. The amount is set automatically from your plan. Submit your payment details for verification.</p>
+<p style="font-size:.8rem;color:var(--text-muted);margin-bottom:12px">Select your subscription plan — the subscription price, any eligible referral discount and the final payable amount are set automatically. Pay by UPI QR, then submit for verification. WhatsApp opens with the prepared message; you must tap Send so the Platform Administrator receives it.</p>
+<div class="form-group"><label>Business ID</label><input type="text" id="ftPayBusinessId" readonly style="background:var(--bg);font-weight:800;cursor:default"><div id="ftPayBusinessName" style="font-size:.68rem;color:var(--text-muted);margin-top:4px"></div></div>
+<div class="form-group"><label>Select Plan</label><select id="paPayPlan" onchange="syncPayAmount();refreshPaymentQr();"><option value="">Select a plan...</option><option value="1month">Monthly</option><option value="3months">Quarterly</option><option value="6months">Half-Yearly</option><option value="12months">Yearly</option></select></div>
+<div class="form-group"><label>Pricing Type</label><select id="paPayPricingType"><option value="normal">Normal Pricing</option></select><div id="paPayPricingHint" style="font-size:.68rem;color:var(--text-muted);margin-top:5px"></div></div>
+<div class="form-group"><label>Subscription Price (₹)</label><input type="text" id="ftPaySubscriptionPrice" readonly style="background:var(--bg);font-weight:800;cursor:default"></div>
+<div class="form-group" id="ftPayDiscountGroup" style="display:none;background:var(--accent-green-bg);border-radius:var(--radius-md);padding:12px"><label style="color:var(--accent-green)">Applied Discount</label><div id="ftPayDiscount" style="font-size:.82rem;line-height:1.6"></div></div>
+<div id="ftPayNoDiscount" style="display:none;font-style:italic;font-size:.78rem;color:var(--text-muted);margin:-4px 0 12px">No discount available. You have not earned any eligible referral discount yet.</div>
+<div class="form-group"><label>Final Payable Amount (₹)</label><input type="text" id="ftPayFinalPayable" readonly style="background:var(--bg);font-weight:800;color:var(--accent-green);font-size:1.05rem;cursor:default"></div>
+<div class="form-group"><label>Amount Paid (₹)</label><input type="number" id="paPayAmount" placeholder="Amount is set from the plan" min="1" readonly style="background:var(--bg);cursor:not-allowed;font-weight:800" title="The amount is set automatically from the selected plan" required></div>
 <div style="text-align:center;margin-bottom:14px">
 <div id="paPayQr" style="display:inline-block;background:#fff;padding:10px;border:1px solid var(--border);border-radius:var(--radius-md)"></div>
 <div id="paPayQrAmount" style="font-size:1.05rem;font-weight:900;color:var(--accent-green);margin-top:8px">&#8377;0</div>
 <div style="font-size:.68rem;color:var(--text-muted);margin-top:2px">Scan with PhonePe / GPay / Paytm / any UPI app</div>
 </div>
-<div class="form-group"><label>Select Plan</label><select id="paPayPlan" onchange="syncPayAmount();refreshPaymentQr();"><option value="">Select a plan...</option><option value="1month">Monthly</option><option value="3months">Quarterly</option><option value="6months">Half-Yearly</option><option value="12months">Yearly</option></select></div>
-<div class="form-group"><label>Pricing Type</label><select id="paPayPricingType"><option value="normal">Normal Pricing</option></select><div id="paPayPricingHint" style="font-size:.68rem;color:var(--text-muted);margin-top:5px"></div></div>
-<div class="form-group"><label>Transaction / Reference ID</label><input type="text" id="paPayTxnId" placeholder="Enter UPI transaction/reference ID" required></div>
-<div class="form-group"><label>Your Mobile Number</label><input type="tel" id="paPayMobile" placeholder="Enter the mobile number" required></div>
-<div class="form-group"><label>Payment Screenshot</label><input type="file" id="paPayScreenshot" accept="image/*"></div>
-<div class="form-group"><label>Amount Paid (₹)</label><input type="number" id="paPayAmount" placeholder="Amount is set from the plan" min="1" readonly style="background:var(--bg);cursor:not-allowed;font-weight:800" title="The amount is set automatically from the selected plan" required></div>
+<div class="form-group" style="position:relative"><label>Payment Method</label><input type="text" id="paPayMethod" placeholder="Search a payment app or enter a custom method" autocomplete="off" required></div>
+<div class="form-group"><label>Payment Mobile Number</label><input type="tel" id="paPayMobile" placeholder="Enter the mobile number" required></div>
 <div style="display:flex;gap:10px;margin-top:16px">
 <button style="flex:1;background:var(--bg);color:var(--text-muted)" onclick="closePaSubmitPayment()">Cancel</button>
 <button style="flex:1" class="btn-primary" onclick="submitPayment()"><i class="fa-brands fa-whatsapp"></i> Submit for Verification</button>
 </div>
+<p style="font-size:.72rem;color:var(--text-muted);margin-top:10px;text-align:center"><i class="fa-brands fa-whatsapp" style="color:#25D366"></i> Submitting records your request and opens WhatsApp with the prepared message — you must tap Send in WhatsApp.</p>
 </div>
 </div>
 <!-- HIDDEN PDF REPORT TEMPLATE -->
@@ -6304,6 +6330,7 @@ const FIREBASE_CONFIG = {
       select.appendChild(opt);
     });
 
+    renderServiceSearchResults();
     handleServiceSelectionChange();
   }
 
@@ -6430,6 +6457,7 @@ const FIREBASE_CONFIG = {
     }
 
     const selId = document.getElementById('serviceSelect').value;
+    if (!selId) return alert("Please select a service from the search results before logging the transaction.");
     const master = appData.masterServices.find(s => s.id === selId);
 
     let desc = master ? master.name : "Custom Service";
@@ -6510,6 +6538,7 @@ const FIREBASE_CONFIG = {
     document.getElementById('deptFeeInput').value = 0;
     document.getElementById('basePrice').value = 0;
     document.getElementById('serviceSelect').value = '';
+    document.getElementById('serviceSearchInput').value = '';
     document.getElementById('customServiceNameInput').value = '';
     document.getElementById('customServiceDetailsInput').value = '';
     document.getElementById('customServiceEntryGroup').style.display = 'none';
@@ -6571,9 +6600,19 @@ const FIREBASE_CONFIG = {
     const isClosed = !!appData.closedMonths[month];
     document.getElementById('servicesClosedMonthBanner').style.display = isClosed ? 'flex' : 'none';
 
-    const logs = appData.serviceLog.filter(s => s.date.substring(0, 7) === month).sort((a, b) => entryDateTimeValue(b) - entryDateTimeValue(a));
+    const destFilter = (document.getElementById('serviceLogDestinationFilter') || {}).value || 'All';
+    const hasCashDest = s => s.isSplit ? parseFloat(s.splitCash || 0) > 0 : s.payMode === 'Cash Drawer';
+    const hasBankDest = s => s.isSplit ? parseFloat(s.splitBank || 0) > 0 : s.payMode === 'Bank/UPI';
+    const hasRecvDest = s => s.isSplit ? parseFloat(s.splitReceivable || 0) > 0 : s.payMode === 'Receivables/Credit';
+    const inMonthEntries = appData.serviceLog.filter(s => s.date.substring(0, 7) === month);
+    let monthLogs = inMonthEntries;
+    if (destFilter === 'Cash Drawer') monthLogs = inMonthEntries.filter(hasCashDest);
+    else if (destFilter === 'Bank UPI') monthLogs = inMonthEntries.filter(hasBankDest);
+    else if (destFilter === 'Receivable') monthLogs = inMonthEntries.filter(hasRecvDest);
+    const carryForward = destFilter === 'Receivable' ? appData.serviceLog.filter(s => s.date.substring(0, 7) < month && hasRecvDest(s)) : [];
+    const logs = monthLogs.concat(carryForward).sort((a, b) => entryDateTimeValue(b) - entryDateTimeValue(a));
 
-    let totalCount = logs.length;
+    let totalCount = monthLogs.length;
     let totalDeptFee = 0;
     let totalRevenue = 0;
 
@@ -6581,8 +6620,11 @@ const FIREBASE_CONFIG = {
     tbody.innerHTML = '';
 
     logs.forEach(s => {
-      totalDeptFee += parseFloat(s.deptFee || 0);
-      totalRevenue += parseFloat(s.serviceCharge || 0) - parseFloat(s.discount || 0);
+      const inSelectedMonth = s.date.substring(0, 7) === month;
+      if (inSelectedMonth) {
+        totalDeptFee += parseFloat(s.deptFee || 0);
+        totalRevenue += parseFloat(s.serviceCharge || 0) - parseFloat(s.discount || 0);
+      }
 
       const tr = document.createElement('tr');
       let modeBadge = `<span class="badge badge-cash">${s.payMode}</span>`;
@@ -6597,13 +6639,13 @@ const FIREBASE_CONFIG = {
       }
 
       tr.innerHTML = `
-        <td>${s.date} <span style="font-size:0.75rem; color:var(--text-muted);">${s.time || ''}</span></td>
+        <td>${s.date}<br><span style="font-size:0.75rem; color:var(--text-muted);">${s.time || ''}</span></td>
         <td><strong>${s.desc}</strong>${s.notes ? `<br><span style="font-size:0.72rem; color:var(--text-muted);">${s.notes}</span>` : ''}${s.receivablePersonName ? `<br><span style="font-size:0.72rem; color:var(--accent-purple); font-weight:700;"><i class="fa-solid fa-user"></i> ${s.receivablePersonName}</span>` : ''}</td>
         <td>₹${parseFloat(s.deptFee || 0).toFixed(2)}</td>
         <td>₹${parseFloat(s.serviceCharge || 0).toFixed(2)}</td>
         <td>₹${parseFloat(s.discount || 0).toFixed(2)}</td>
         <td style="font-weight:800; color:var(--accent-green);">₹${parseFloat(s.total || 0).toFixed(2)}</td>
-        <td>${modeBadge}</td>
+        <td>${modeBadge}${!inSelectedMonth ? '<br><span style="font-size:0.68rem; color:var(--accent-purple); font-weight:700;">Outstanding — carried forward from an earlier month</span>' : ''}</td>
         <td>${s.staff || s.user || '\u2014'}</td>
         <td>
           ${!isClosed ? `
@@ -6614,6 +6656,10 @@ const FIREBASE_CONFIG = {
       `;
       tbody.appendChild(tr);
     });
+
+    if (!logs.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:18px;">No collection entries match this destination for the selected period.</td></tr>';
+    }
 
     document.getElementById('summaryCount').innerText = totalCount;
     document.getElementById('summaryTodayDeptFee').innerText = `₹${totalDeptFee.toFixed(2)}`;
@@ -10343,7 +10389,7 @@ function renderPABusinesses() {
       '<td>'+(b.staffCount||0)+'</td>'+
       '<td><span class="pa-dot '+(online?'pa-online':'pa-offline')+'"></span>'+(online?'Online':'Offline')+'</td>'+
       '<td style="font-size:.78rem">'+(lastAct?formatTimeAgo(lastAct):'Never')+'</td>'+
-      '<td><span class="pa-badge pa-badge-'+subStatus+'">'+subStatus.charAt(0).toUpperCase()+subStatus.slice(1)+'</span></td>'+
+      '<td>'+(window.ftSubStatusBadge ? window.ftSubStatusBadge(b) : '<span class="pa-badge pa-badge-'+subStatus+'">'+subStatus.charAt(0).toUpperCase()+subStatus.slice(1)+'</span>')+' <button type="button" onclick="event.stopPropagation(); ftBizWhatsApp(\''+b.id+'\')" title="Message this business administrator on WhatsApp" style="background:none;border:none;cursor:pointer;padding:2px 4px;color:#25D366;font-size:1rem;vertical-align:middle"><i class="fa-brands fa-whatsapp"></i></button></td>'+
       '<td style="font-size:.78rem">'+window.ftExpiryCell(b, subStatus)+'</td>'+
       '<td style="font-size:.78rem">'+(usage.known?window.ftFmtBytes(usage.currentKB*1024):'Unavailable')+'</td>';
     tbody.appendChild(tr);
@@ -10471,10 +10517,10 @@ function openBusinessProfile(bizId) {
   html += '<div class="app-card" style="border-left:5px solid var(--primary)"><h3 style="font-size:1rem;font-weight:800;margin-bottom:12px"><i class="fa-solid fa-database" style="color:var(--primary)"></i> Business Data Usage (IST)</h3>'+
     '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px">'+
     '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Current Storage</span><div style="font-size:1.3rem;font-weight:800;color:var(--primary);margin-top:4px">'+(usage.known?usage.currentKB.toFixed(1)+' KB':'Unavailable')+'</div></div>'+
-    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Cumulative Data Added</span><div style="font-size:1.3rem;font-weight:800;color:var(--accent-green);margin-top:4px">'+(usage.cumulativeKB>0?usage.cumulativeKB.toFixed(1)+' KB':'Unavailable')+'</div></div>'+
-    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Added Today (IST)</span><div style="font-size:1.3rem;font-weight:800;color:var(--accent-amber);margin-top:4px">'+(usage.todayKB>0?usage.todayKB.toFixed(1)+' KB':'Unavailable')+'</div></div>'+
-    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Weekly Usage</span><div style="font-size:1.3rem;font-weight:800;color:var(--accent-purple);margin-top:4px">'+(usage.weeklyKB>0?usage.weeklyKB.toFixed(1)+' KB':'Unavailable')+'</div></div>'+
-    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Monthly Usage</span><div style="font-size:1.3rem;font-weight:800;color:var(--atmos-navy);margin-top:4px">'+(usage.monthlyKB>0?usage.monthlyKB.toFixed(1)+' KB':'Unavailable')+'</div></div>'+
+    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Cumulative Data Added</span><div style="font-size:1.3rem;font-weight:800;color:var(--accent-green);margin-top:4px">'+((usage.cumulativeKB||0).toFixed(1)+' KB')+'</div></div>'+
+    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Added Today (IST)</span><div style="font-size:1.3rem;font-weight:800;color:var(--accent-amber);margin-top:4px">'+((usage.todayKB||0).toFixed(1)+' KB')+'</div></div>'+
+    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Weekly Usage</span><div style="font-size:1.3rem;font-weight:800;color:var(--accent-purple);margin-top:4px">'+((usage.weeklyKB||0).toFixed(1)+' KB')+'</div></div>'+
+    '<div style="background:white;padding:14px;border-radius:var(--radius-md);border:1px solid var(--border)"><span style="font-size:.7rem;font-weight:800;color:var(--text-muted);text-transform:uppercase">Monthly Usage</span><div style="font-size:1.3rem;font-weight:800;color:var(--atmos-navy);margin-top:4px">'+((usage.monthlyKB||0).toFixed(1)+' KB')+'</div></div>'+
     '</div>';
   if (usage.estimated) {
     html += '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius-md);padding:8px 12px;font-size:.78rem;color:#92400e"><i class="fa-solid fa-circle-info"></i> Data usage figures are estimates based on stored metadata. Actual figures are shown only for the currently connected business.</div>';
@@ -12435,10 +12481,25 @@ window.addEventListener('DOMContentLoaded', function() {
     else setLocal('rc_' + (field === 'readAt' ? 'read_' : 'del_') + id, t);
   }
   var ftInboxBound = null, ftInboxSrc = { reg: null, mirror: null };
+  /* Both sources can hold the same message: the platform inbox holds it in full,
+     while the business copy also carries the read/delete receipts. They are merged
+     key by key, so a receipt written beside a message never blanks its subject and
+     body - the message stays readable until it is deleted or four days pass. */
+  function ftMergeNotice(base, next) {
+    var out = Object.assign({}, base || {});
+    Object.keys(next || {}).forEach(function (k) {
+      var v = next[k];
+      if (v === null || v === undefined) return;
+      if ((k === 'readBy' || k === 'deletedBy') && typeof v === 'object') { out[k] = Object.assign({}, out[k] || {}, v); return; }
+      if (typeof v === 'string' && v === '' && out[k]) return;
+      out[k] = v;
+    });
+    return out;
+  }
   function ftInboxMerge() {
     var m = {};
-    if (ftInboxSrc.reg) Object.keys(ftInboxSrc.reg).forEach(function (k) { if (ftInboxSrc.reg[k]) m[k] = ftInboxSrc.reg[k]; });
-    if (ftInboxSrc.mirror) Object.keys(ftInboxSrc.mirror).forEach(function (k) { if (ftInboxSrc.mirror[k]) m[k] = ftInboxSrc.mirror[k]; });
+    if (ftInboxSrc.reg) Object.keys(ftInboxSrc.reg).forEach(function (k) { if (ftInboxSrc.reg[k]) m[k] = ftMergeNotice(null, ftInboxSrc.reg[k]); });
+    if (ftInboxSrc.mirror) Object.keys(ftInboxSrc.mirror).forEach(function (k) { if (ftInboxSrc.mirror[k]) m[k] = ftMergeNotice(m[k], ftInboxSrc.mirror[k]); });
     ftInboxCache = m;
     refreshBell();
   }
@@ -12479,6 +12540,7 @@ window.addEventListener('DOMContentLoaded', function() {
       if (ftInboxCache) Object.keys(ftInboxCache).forEach(function (k) { if (ftInboxCache[k]) inbox[k] = ftInboxCache[k]; });
       Object.keys(inbox).forEach(function (id) {
         var n = inbox[id] || {};
+        if (!n.subject && !n.message) return;
         var rc = receiptOf(id);
         if (rc.deletedAt) return;
         if (n.deletedBy && n.deletedBy[u.id]) return;
@@ -12739,19 +12801,27 @@ window.addEventListener('DOMContentLoaded', function() {
     var r = db(); if (!r || !isPA()) return {};
     var pd = PD(), ids = ftBizOrderIds(pd.businesses || {}), out = {};
     for (var i = 0; i < ids.length; i++) {
-      var kb = 0, failed = false;
+      var kb = 0, known = false;
       /* What the business publishes on its own beat. */
-      try { var f = await r.ref('businesses/' + ids[i] + '/meta/facts/usageKB').get(); kb = Number(f && f.val()) || 0; } catch (e) { kb = 0; }
-      /* And everything this platform administrator can read for the business, so
-         a business holding records is measured from what is really stored
-         instead of reading as 0 KB. Only a read that truly fails is reported as
-         unavailable, and a zero is never remembered as a measurement. */
       try {
-        var snap = await r.ref('businesses/' + ids[i]).get(); var v = snap && snap.val();
-        if (v) kb = Math.max(kb, JSON.stringify(v).length / 1024);
-      } catch (e) { failed = true; }
-      if (kb > 0) { out[ids[i]] = Math.round(kb * 1024); ftRememberBizKB(ids[i], Math.round(kb * 10) / 10); }
-      else out[ids[i]] = null;
+        var f = await r.ref('businesses/' + ids[i] + '/meta/facts/usageKB').get();
+        if (f && f.val() != null) { kb = Math.max(kb, Number(f.val()) || 0); known = true; }
+      } catch (e) {}
+      /* Everything this platform administrator can actually read for the business:
+         the business's own records where the rules allow it, and the administrator's
+         copy of them where they do not. A figure is shown as soon as any of these
+         can be read, so real stored data is never reported as unavailable. */
+      var paths = ['businesses/' + ids[i], 'atmos_platform_admin/businesses/' + ids[i]];
+      for (var j = 0; j < paths.length; j++) {
+        try {
+          var snap = await r.ref(paths[j]).get();
+          if (snap && snap.exists()) { kb = Math.max(kb, JSON.stringify(snap.val()).length / 1024); known = true; }
+        } catch (e) {}
+      }
+      /* The record this console already holds is a measurement too. */
+      try { var mine = (pd.businesses || {})[ids[i]]; if (mine) { kb = Math.max(kb, JSON.stringify(mine).length / 1024); known = true; } } catch (e) {}
+      out[ids[i]] = known ? Math.round(kb * 1024) : null;
+      if (kb > 0) ftRememberBizKB(ids[i], Math.round(kb * 10) / 10);
     }
     return out;
   }
@@ -13001,11 +13071,23 @@ function applyTrialDurationChange(prevDays, newDays) {
   return changed;
 }
 
+/* The plan, pricing category and amount this account is on, read from its own
+   stored record: the configured price for that plan in that category. */
+function applyStoredPlan(b, st) {
+  st.plan = PLAN_LABELS[b.subscriptionPlan] || 'Paid Subscription';
+  st.pricing = (b.subscriptionPricingType === 'introductory') ? 'Introductory Pricing' : 'Normal Pricing';
+  try {
+    var tier = (b.subscriptionPricingType === 'introductory') ? 'introductory' : 'normal';
+    var plan = (paPlans()[tier] || {})[b.subscriptionPlan] || null;
+    if (plan && plan.price != null && plan.price !== '') st.priceText = '\u20B9' + Number(plan.price);
+  } catch (e) {}
+}
+
 function getSubscriptionState() {
   var DAY = 86400000;
   var st = { registered: false, status: 'none', locked: false, daysLeft: 0, graceLeft: 0, totalDays: 0, trialDays: 0,
              message: '', messageColor: 'var(--text-muted)',
-             plan: '\u2014', pricing: '\u2014', expiryText: '\u2014' };
+             plan: '\u2014', pricing: '\u2014', priceText: '', expiryText: '\u2014' };
   var b = getCurrentBizRecord();
   if (!b) return st;
   st.registered = true;
@@ -13020,8 +13102,7 @@ function getSubscriptionState() {
 
   /* PAID subscription - the 3 day grace period runs only after a paid plan ends */
   if ((b.subscriptionStatus === 'active' || b.subscriptionStatus === 'grace') && b.subscriptionExpiry) {
-    st.plan = PLAN_LABELS[b.subscriptionPlan] || 'Paid Subscription';
-    st.pricing = (b.subscriptionPricingType === 'introductory') ? 'Introductory Pricing' : 'Normal Pricing';
+    applyStoredPlan(b, st);
     var paidEnd = Date.parse(b.subscriptionExpiry + 'T23:59:59+05:30');
     if (isNaN(paidEnd)) paidEnd = new Date(b.subscriptionExpiry).getTime();
     st.expiryText = istDateText(paidEnd);
@@ -13091,6 +13172,7 @@ function getSubscriptionState() {
 
   if (b.subscriptionStatus === 'expired') {
     st.status = 'expired'; st.locked = true;
+    if (b.subscriptionPlan) applyStoredPlan(b, st);
     st.message = 'Your subscription has ended. Kindly renew to restore operational access.';
     st.messageColor = 'var(--accent-rose)';
   }
@@ -13155,14 +13237,12 @@ function upiPayUri(amount) {
   function buildBizSubCardHtml() {
   var st = getSubscriptionState();
   var colors = { trial: '#800080', active: '#2E8B57', grace: '#DC2626', expired: '#8B0000', blocked: '#8B0000', none: 'var(--text-muted)' };
-  var labels = { trial: 'Trial Period', active: 'Subscription Active', grace: 'Grace Period', expired: 'Not Renewed', blocked: 'Blocked', none: 'Not Registered' };
+  var labels = { trial: 'Free Trial', active: 'Subscription Active', grace: 'Grace Period', expired: 'Subscription Expired', blocked: 'Blocked', none: 'Not Registered' };
   var c = colors[st.status] || 'var(--text-muted)';
   var l = labels[st.status] || 'Unknown';
   var isTrial = st.status === 'trial';
   var isPaid = st.status === 'active';
   var dLeft = (st.status === 'grace') ? (st.graceLeft || 0) : (st.daysLeft || 0);
-  var endingSoon = (st.status === 'active' || isTrial) && dLeft <= 5;
-  if (endingSoon && dLeft > 0) l = isTrial ? 'Trial Ending' : 'Subscription Ending';
   var periodText = (st.status === 'grace') ? 'in grace period' : (isTrial ? 'in trial period' : (isPaid ? 'in subscription period' : ((st.status === 'expired' || st.status === 'blocked') ? 'period expired' : 'not registered')));
   var dayCol = isTrial ? '#800080' : (isPaid ? (dLeft <= 5 ? '#F97316' : '#2E8B57') : (st.status === 'grace' ? '#DC2626' : ((st.status === 'expired' || st.status === 'blocked') ? '#8B0000' : 'var(--text-muted)')));
   var daysBox = '<div style="text-align:center;width:100%;min-width:100px;display:flex;flex-direction:column;align-items:center;justify-content:center">' +
@@ -13181,9 +13261,8 @@ function upiPayUri(amount) {
     + msg + counter
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">'
     + '<span style="background:' + c + ';color:#fff;padding:4px 10px;border-radius:20px;font-size:.7rem;font-weight:800">' + l + '</span>'
-    + '<span style="' + pill + '">Trial: ' + (st.trialDays > 0 ? st.trialDays + ' days' : 'not offered') + '</span>'
-    + '<span style="' + pill + '">Paid: ' + st.plan + '</span>'
-    + '<span style="' + pill + '">Pricing: ' + st.pricing + '</span>'
+    + '<span style="' + pill + '">Plan: ' + st.plan + '</span>'
+    + '<span style="' + pill + '">Pricing: ' + st.pricing + (st.priceText ? ' \u00b7 ' + st.priceText : '') + '</span>'
     + (st.status === 'grace' ? '<span style="' + pill + '">Grace: ' + st.graceLeft + ' of ' + SUB_GRACE_DAYS + ' days</span>' : '')
     + '</div>'
     + '<button class="btn-admin" onclick="openPaSubmitPayment()" style="width:auto"><i class="fa-solid fa-qrcode"></i> Pay / Renew Subscription</button>'
@@ -14366,6 +14445,26 @@ if (typeof __ftSwitchTab === 'function') {
   F.maxTotal = function () { return Math.round((F.maxBalance() + F.firstDiscount) * 100) / 100; };
   F.account = null; F.accountBid = ''; F.introductions = {}; F.pendingKnown = false; F.bound = ''; F.bindings = [];
   F.failure = function (error) { alert('This change was not saved. ' + (error && error.message || error) + '\nIf Firebase reports permission denied, apply the updated Firebase rules provided with this file.'); };
+  /* The business administrator receives the same message on WhatsApp, addressed to
+     the mobile number registered on that business. The text opens ready to send. */
+  F.bizWhatsApp = function (bid, subject, message) {
+    var b = (platformData.businesses || {})[bid] || {};
+    var number = String(b.adminContact || '').replace(/\D/g, '');
+    if (number.length === 10) number = '91' + number;
+    else if (number.length === 11 && number.charAt(0) === '0') number = '91' + number.slice(1);
+    if (number.length < 10) return false;
+    var text = (subject ? subject + '\n\n' : '') + String(message || '');
+    var opened = null;
+    try { opened = window.open('https://wa.me/' + number + '?text=' + encodeURIComponent(text), '_blank'); } catch (e) { opened = null; }
+    return !!opened;
+  };
+  F.whatsAppNotice = function (bid, nid) {
+    if (!bid) return false;
+    var b = (platformData.businesses || {})[bid] || {};
+    var n = (b.inbox || {})[nid] || (platformData.notifications || {})[nid] || null;
+    if (!n || !n.message) return false;
+    return F.bizWhatsApp(bid, n.subject, n.message);
+  };
   F.randomCode = function () { var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', out; do { var a = new Uint8Array(14); crypto.getRandomValues(a); out = Array.from(a).filter(function (n) { return n < 252; }).slice(0,7).map(function (n) { return chars[n % 36]; }).join(''); } while (out.length !== 7 || !/[A-Z]/.test(out) || !/[0-9]/.test(out)); return out; };
   F.ensureAccount = async function (id, business) {
     var ref = F.ref('referralAccounts/' + id);
@@ -14420,7 +14519,7 @@ if (typeof __ftSwitchTab === 'function') {
   F.cell = function (content, extra) { return '<td style="padding:8px 10px;vertical-align:top;' + (extra || '') + '">' + content + '</td>'; };
   F.table = function (headers, rows, empty) {
     return '<div style="overflow:auto;max-height:236px;border:1px solid var(--border);border-radius:var(--radius-md)"><table style="width:100%;border-collapse:collapse;font-size:.78rem">'
-      + '<thead><tr>' + headers.map(function (h) { return '<th style="text-align:left;padding:8px 10px;font-size:.62rem;font-weight:900;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap">' + h + '</th>'; }).join('') + '</tr></thead>'
+      + '<thead><tr>' + headers.map(function (h) { return '<th style="text-align:left;padding:8px 10px;font-size:.62rem;font-weight:900;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;position:sticky;top:0;background:#fff;z-index:1">' + h + '</th>'; }).join('') + '</tr></thead>'
       + '<tbody>' + (rows.length ? rows.join('') : '<tr><td colspan="' + headers.length + '" style="text-align:center;padding:14px;color:var(--text-muted)">' + empty + '</td></tr>') + '</tbody></table></div>';
   };
   /* Opened from the feature search: make sure the card exists, is filled and is
@@ -14514,7 +14613,7 @@ if (typeof __ftSwitchTab === 'function') {
 </script>
 <script id="ftRequestedUpdate1">
 
-/* FINTRACK REQUESTED UPDATE: device-only screenshots and durable single pending request. */
+/* FINTRACK REQUESTED UPDATE: simplified payment verification with a direct WhatsApp handover. */
 (function () {
   var F = window.FTRequestedUpdate, draft = null, busy = false;
   var duplicate = 'You have already submitted a payment-verification request. Kindly wait for the platform administrator to review and approve or reject your request.';
@@ -14526,59 +14625,80 @@ if (typeof __ftSwitchTab === 'function') {
   };
   F.mountPayment = function () {
     var plan = F.el('paPayPlan'); if (plan) { var placeholder = plan.querySelector('option[value=""]'); if (placeholder) placeholder.remove(); if (!plan.value) plan.value = Object.keys(paPlans().normal).find(function (k) { return F.daysFor(k) === 30; }) || plan.options[0].value; }
-    var old = F.el('paPayTxnId'); if (old) { old.id = 'paPayMethod'; old.placeholder = 'Search a payment app or enter a custom method'; old.required = true; old.autocomplete = 'off'; var wrap = old.closest('.form-group'); wrap.querySelector('label').textContent = 'Payment Method *'; wrap.style.position = 'relative'; var list = document.createElement('div'); list.id = 'ftPayMethodSuggestions'; list.hidden = true; list.style.cssText = 'position:absolute;top:100%;left:0;right:0;z-index:4;max-height:180px;overflow:auto;box-shadow:var(--shadow);background:var(--card-bg)'; wrap.appendChild(list); old.oninput = F.methodSuggestions; old.onfocus = F.methodSuggestions; old.onblur = function () { setTimeout(function () { list.hidden = true; }, 150); }; }
-    ['paPayMobile','paPayScreenshot'].forEach(function (id) { var el = F.el(id); if (!el) return; el.required = true; el.closest('.form-group').querySelector('label').textContent = id === 'paPayMobile' ? 'Payment mobile number *' : 'Payment screenshot *'; });
-    if (!F.el('ftPayDiscount')) { var d = document.createElement('div'); d.id = 'ftPayDiscount'; d.style.cssText = 'padding:12px;margin-bottom:12px;background:var(--accent-green-bg);border-radius:var(--radius-md)'; F.el('paPayAmount').closest('.form-group').before(d); }
-    if (!F.el('ftWhatsAppConfirm')) { var info = document.createElement('div'); info.id = 'ftWhatsAppConfirm'; info.style.cssText = 'font-size:.8rem;margin:12px 0;line-height:1.5'; info.textContent = 'Your screenshot stays on this device. Share the actual image to the platform support WhatsApp contact; it is never uploaded to Firebase. A chat link cannot attach an image automatically.'; F.el('paPayScreenshot').closest('.form-group').after(info); }
-    /* Order the fields so the discount details and the final payable amount are
-       read first, and the QR below them matches that final payable amount. */
-    var __qr = F.el('paPayQr') ? F.el('paPayQr').parentNode : null;
-    var __card = F.el('paSubmitPaymentModal') ? F.el('paSubmitPaymentModal').querySelector('.modal-card') : null;
-    var __cancel = document.querySelector('#paSubmitPaymentModal [onclick="closePaSubmitPayment()"]');
-    var __buttons = __cancel ? __cancel.parentNode : null;
-    if (__card && __buttons && __qr) {
-      [F.el('paPayPlan'), F.el('paPayPricingType')].forEach(function (n) { var g = n ? n.closest('.form-group') : null; if (g) __card.insertBefore(g, __buttons); });
-      if (F.el('ftPayDiscount')) __card.insertBefore(F.el('ftPayDiscount'), __buttons);
-      var __amountGroup = F.el('paPayAmount') ? F.el('paPayAmount').closest('.form-group') : null;
-      if (__amountGroup) __card.insertBefore(__amountGroup, __buttons);
-      __card.insertBefore(__qr, __buttons);
-      ['paPayMethod','paPayMobile','paPayScreenshot'].forEach(function (id) { var n = F.el(id), g = n ? n.closest('.form-group') : null; if (g) __card.insertBefore(g, __buttons); });
-    }
+    var b = getCurrentBizRecord() || {};
+    if (F.el('ftPayBusinessId')) F.el('ftPayBusinessId').value = b.displayId || F.bid();
+    if (F.el('ftPayBusinessName')) F.el('ftPayBusinessName').textContent = b.name || '';
+    var method = F.el('paPayMethod');
+    if (method && !F.el('ftPayMethodSuggestions')) { var list = document.createElement('div'); list.id = 'ftPayMethodSuggestions'; list.hidden = true; list.style.cssText = 'position:absolute;top:100%;left:0;right:0;z-index:4;max-height:180px;overflow:auto;box-shadow:var(--shadow);background:var(--card-bg)'; method.closest('.form-group').appendChild(list); method.oninput = F.methodSuggestions; method.onfocus = F.methodSuggestions; method.onblur = function () { setTimeout(function () { list.hidden = true; }, 150); }; }
+    syncPayAmount();
   };
   syncPayAmount = function () {
     if (!F.el('paPayPlan') || !F.el('paPayAmount')) return;
     var pt = (F.el('paPayPricingType') || {}).value || 'normal', def = (paPlans()[pt] || paPlans().normal)[F.el('paPayPlan').value]; if (!def) return;
-    var d = F.discount(def.price); F.el('paPayAmount').value = d.final;
-    /* The one-time first-subscription discount belongs here, inside the applied
-       discount, instead of in a separate card that later becomes idle. */
+    var d = F.discount(def.price);
+    F.el('paPayAmount').value = d.final;
+    if (F.el('ftPaySubscriptionPrice')) F.el('ftPaySubscriptionPrice').value = '₹' + d.original.toFixed(2);
+    if (F.el('ftPayFinalPayable')) { F.el('ftPayFinalPayable').value = '₹' + d.final.toFixed(2); var payableGroup = F.el('ftPayFinalPayable').closest('.form-group'); if (payableGroup) payableGroup.style.display = d.pct > 0 ? 'block' : 'none'; }
     var parts = []; if (d.first > 0) parts.push('one-time first-subscription ' + d.first + '%'); if (d.credits > 0) parts.push('referral credit ' + d.credits + '%');
-    var box = F.el('ftPayDiscount'); if (box) box.innerHTML = 'Original subscription price: ₹' + d.original.toFixed(2) + '<br>Applied discount: ' + d.pct + '%' + (parts.length ? ' (' + parts.join(' + ') + ')' : '') + '<br>Discount amount: ₹' + d.amount.toFixed(2) + '<br><strong>Final payable amount: ₹' + d.final.toFixed(2) + '</strong>';
+    var group = F.el('ftPayDiscountGroup'), note = F.el('ftPayNoDiscount'), box = F.el('ftPayDiscount');
+    if (d.pct > 0) {
+      if (group) group.style.display = 'block';
+      if (note) note.style.display = 'none';
+      if (box) box.innerHTML = 'Applied discount: <strong>' + d.pct + '%</strong>' + (parts.length ? ' (' + parts.join(' + ') + ')' : '') + '<br>Discount amount: <strong>₹' + d.amount.toFixed(2) + '</strong>';
+    } else {
+      if (group) group.style.display = 'none';
+      if (note) note.style.display = 'block';
+      if (box) box.innerHTML = '';
+    }
     refreshPaymentQr();
   };
-  var oldOpen = openPaSubmitPayment; openPaSubmitPayment = function () { if (!F.admin()) return; if (!F.pendingKnown || !F.account || F.accountBid !== F.bid()) return alert('Payment and referral status is still loading. Please wait, or apply the updated Firebase rules if it remains unavailable.'); if (hasPendingPayment()) return alert(duplicate); F.mountPayment(); draft = null; F.el('paPayMethod').value = ''; F.el('paPayScreenshot').value = ''; F.el('paPayMobile').value = (getCurrentBizRecord() || {}).adminContact || ''; F.el('ftWhatsAppConfirm').textContent = 'Share the actual image and payment message to platform support on WhatsApp, then confirm delivery. The screenshot is never saved in Firebase.'; oldOpen(); F.el('paSubmitPaymentModal').style.zIndex = '100005'; };
+  var oldOpen = openPaSubmitPayment; openPaSubmitPayment = function () { if (!F.admin()) return; if (!F.pendingKnown || !F.account || F.accountBid !== F.bid()) return alert('Payment and referral status is still loading. Please wait, or apply the updated Firebase rules if it remains unavailable.'); if (hasPendingPayment()) return alert(duplicate); F.mountPayment(); F.el('paPayMethod').value = ''; F.el('paPayMobile').value = (getCurrentBizRecord() || {}).adminContact || ''; oldOpen(); F.el('paSubmitPaymentModal').style.zIndex = '100005'; };
   submitPayment = async function () {
     if (!F.admin() || busy) return; busy = true;
     var button = document.querySelector('[onclick="submitPayment()"]'); if (button) button.disabled = true;
     try {
-      var plan = F.el('paPayPlan').value, pt = F.el('paPayPricingType').value || 'normal', method = F.el('paPayMethod').value.trim(), mobile = F.el('paPayMobile').value.trim(), file = F.el('paPayScreenshot').files[0];
-      if (!plan || !method || !/^\d{10}$/.test(mobile.replace(/\D/g,'')) || !file || !/^image\//.test(file.type)) throw new Error('Select a plan, enter your payment method and valid 10-digit mobile number, and attach an image screenshot.');
+      var plan = F.el('paPayPlan').value, pt = F.el('paPayPricingType').value || 'normal', method = F.el('paPayMethod').value.trim(), mobile = F.el('paPayMobile').value.trim();
+      if (!plan || !method || !/^\d{10}$/.test(mobile.replace(/\D/g,''))) throw new Error('Select a plan, enter your payment method and a valid 10-digit mobile number.');
       if (hasPendingPayment()) throw new Error(duplicate);
       var id = F.bid();
       var discount = F.discount((paPlans()[pt] || paPlans().normal)[plan].price), b = getCurrentBizRecord() || {};
-      draft = { businessId:id,businessName:b.name||'',businessDisplayId:b.displayId||'',plan:plan,pricingType:pt,paymentMethod:method,mobile:mobile,amount:discount.final,originalAmount:discount.original,discountPct:discount.pct,discountAmount:discount.amount,referralFirstDiscount:discount.first,referralCreditsUsed:discount.credits,screenshotDelivery:'whatsapp',screenshotConfirmed:false,status:'pending',submittedAt:firebase.database.ServerValue.TIMESTAMP };
-      var msg = 'PAYMENT VERIFICATION REQUEST\nBusiness: ' + (b.name || '') + '\nBusiness ID: ' + (b.displayId || id) + '\nPlan: ' + (PLAN_LABELS[plan] || plan) + '\nPricing: ' + pt + '\nPayment Method: ' + method + '\nMobile: ' + mobile + '\nOriginal price: Rs ' + discount.original.toFixed(2) + '\nDiscount: ' + discount.pct + '% (Rs ' + discount.amount.toFixed(2) + ')\nAmount paid: Rs ' + discount.final.toFixed(2) + '\nPlease verify the attached payment screenshot and activate my subscription.';
-      var box = F.el('ftWhatsAppConfirm'); box.innerHTML = '';
-      var canShare = navigator.share && navigator.canShare && navigator.canShare({files:[file]});
-      if (canShare) { try { await navigator.share({files:[file],text:msg,title:'Payment verification'}); } catch (shareError) { if (shareError.name === 'AbortError') throw shareError; canShare = false; } }
-      var chat = document.createElement('a'); chat.href = 'https://wa.me/' + SUPPORT_WHATSAPP + '?text=' + encodeURIComponent(msg); chat.target = '_blank'; chat.rel = 'noopener'; chat.textContent = 'Open platform support on WhatsApp'; box.appendChild(chat);
-      var p = document.createElement('p'); p.textContent = canShare ? 'The device share sheet has closed. Only confirm after sending the image and message to the platform support contact on WhatsApp.' : 'This browser cannot share an image directly. Open WhatsApp above, attach the selected screenshot manually, and send it with the payment message. No image has been sent automatically.'; box.appendChild(p);
-      var label = document.createElement('label'), checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.style.width = 'auto'; label.style.cssText = 'text-transform:none;font-size:.8rem;margin:10px 0'; label.appendChild(checkbox); label.appendChild(document.createTextNode(' I sent the actual image and payment message to platform support on WhatsApp.')); box.appendChild(label);
-      var confirmButton = document.createElement('button'); confirmButton.type = 'button'; confirmButton.className = 'btn-primary'; confirmButton.textContent = 'Confirm WhatsApp delivery and save verification request'; confirmButton.onclick = async function () {
-        if (!checkbox.checked) return alert('Please send the actual screenshot and message to platform support first.'); if (!draft || draft.businessId !== F.bid() || !F.admin()) return;
-        confirmButton.disabled = true;
-        try { draft.screenshotConfirmed = true; var result = await F.ref('payments/REQ-' + draft.businessId).transaction(function (p) { if (p) return; return draft; }, undefined, false); if (!result.committed) throw new Error(duplicate); platformData.payments = platformData.payments || {}; platformData.payments['REQ-' + draft.businessId] = result.snapshot.val(); draft = null; closePaSubmitPayment(); F.el('paPayScreenshot').value = ''; renderBizSubscriptionCard(); ftRenderAccessLock(); alert('Payment submitted successfully. Waiting for verification and approval from the platform administrator.'); } catch (e) { F.failure(e); } finally { confirmButton.disabled = false; }
-      }; box.appendChild(confirmButton);
-    } catch (e) { draft = null; if (e.name === 'AbortError') alert('Sharing was cancelled. No request was submitted and no screenshot was stored.'); else F.failure(e); }
+      /* The deployed Firebase rules validate the pending-request shape with these
+         two marker fields; no image is attached and nothing is uploaded. */
+      var record = { businessId:id,businessName:b.name||'',businessDisplayId:b.displayId||'',plan:plan,pricingType:pt,paymentMethod:method,mobile:mobile,amount:discount.final,originalAmount:discount.original,discountPct:discount.pct,discountAmount:discount.amount,referralFirstDiscount:discount.first,referralCreditsUsed:discount.credits,screenshotDelivery:'whatsapp',screenshotConfirmed:true,status:'pending',submittedAt:firebase.database.ServerValue.TIMESTAMP };
+      /* A transaction reads the request slot before writing, but the deployed
+         rules grant that read only after a record exists there, so a first
+         request was refused. A direct write needs no read, and the rules'
+         "!data.exists()" guard still prevents a duplicate request. */
+      await F.ref('payments/REQ-' + id).set(record);
+      platformData.payments = platformData.payments || {};
+      var local = Object.assign({}, record); local.submittedAt = Date.now();
+      platformData.payments['REQ-' + id] = local;
+      var msg = 'PAYMENT VERIFICATION REQUEST\n'
+        + '--------------------------------\n'
+        + 'Business ID: ' + (b.displayId || id) + '\n'
+        + 'Business Name: ' + (b.name || '') + '\n'
+        + 'Selected Plan: ' + (PLAN_LABELS[plan] || plan) + '\n'
+        + 'Pricing Type: ' + (pt === 'introductory' ? 'Introductory Pricing' : 'Normal Pricing') + '\n'
+        + 'Subscription Price: Rs ' + discount.original.toFixed(2) + '\n'
+        + (discount.pct > 0 ? 'Applied Discount: ' + discount.pct + '% (Rs ' + discount.amount.toFixed(2) + ')\n' : '')
+        + (discount.pct > 0 ? 'Final Payable Amount: Rs ' + discount.final.toFixed(2) + '\n' : '')
+        + 'Amount Paid: Rs ' + discount.final.toFixed(2) + '\n'
+        + 'Payment Method: ' + method + '\n'
+        + 'Payment Mobile Number: ' + mobile + '\n'
+        + '--------------------------------\n'
+        + 'Please verify and activate my subscription.';
+      var waUrl = 'https://wa.me/' + SUPPORT_WHATSAPP + '?text=' + encodeURIComponent(msg);
+      var opened = null; try { opened = window.open(waUrl, '_blank'); } catch (e2) { opened = null; }
+      if (!opened) { try { window.location.href = waUrl; } catch (e2) {} }
+      closePaSubmitPayment();
+      F.el('paPayMethod').value = '';
+      renderBizSubscriptionCard(); ftRenderAccessLock();
+      alert('Your verification request has been recorded and is now pending with the Platform Administrator.\n\nWhatsApp has opened with the prepared message \u2014 you must tap Send in WhatsApp so the administrator receives it.\n\nYour subscription is activated once the administrator verifies this payment.');
+    } catch (e) {
+      if (e && /permission_denied/i.test(String(e.message || e.code || e))) {
+        alert('Firebase rejected this request. Check these in order:\n\n1) Publish the updated Firebase rules from this file (Firebase console, Realtime Database, Rules: paste and Publish). Older rules still expect a payment screenshot and reject this request format.\n\n2) Sign in with the administrator account that registered this business. The business record must list that account as its administrator.\n\n3) If an earlier request from this business was already recorded or rejected, ask the platform administrator to delete that old request so a fresh one can be submitted.');
+      } else F.failure(e);
+    }
     finally { busy = false; if (button) button.disabled = false; }
   };
   /* Retired screenshot/base64 path cannot be invoked from an old control. */
@@ -14694,18 +14814,32 @@ if (typeof __ftSwitchTab === 'function') {
   openPaymentDetail = function (id) {
     if (!platformAdminUser) return; var p = (platformData.payments || {})[id]; if (!p || p.status !== 'pending') return;
     paCurrentPaymentId = id; var b = (platformData.businesses || {})[p.businessId] || {};
-    F.el('paPaymentDetail').innerHTML = '<p><strong>Business:</strong> ' + F.esc(b.name) + ' (' + F.esc(b.displayId || p.businessId) + ')</p><p><strong>Plan selected:</strong> ' + F.esc(PLAN_LABELS[p.plan] || p.plan) + '</p><p><strong>Submitted amount:</strong> ₹' + Number(p.amount || 0).toFixed(2) + '</p><p><strong>Payment method:</strong> ' + F.esc(p.paymentMethod || p.txnId || 'Legacy request') + '</p><p><strong>Mobile:</strong> ' + F.esc(p.mobile) + '</p><p><strong>Discount:</strong> ' + Number(p.discountPct || 0) + '% (₹' + Number(p.discountAmount || 0).toFixed(2) + ')</p><p style="margin:10px 0">Verify the actual screenshot in the support WhatsApp conversation. The application does not store the image.</p>' + F.field('Verified payment amount (₹)', 'ftVerifiedAmount','number',p.amount) + '<div class="form-group"><label>Approved subscription duration</label><select id="ftApprovedDays">' + [30,90,182,365].map(function (d) { return '<option value="'+d+'"'+(d===F.daysFor(p.plan)?' selected':'')+'>'+d+' days</option>'; }).join('') + '</select></div>';
+    F.el('paPaymentDetail').innerHTML = '<p><strong>Business:</strong> ' + F.esc(b.name) + ' (' + F.esc(b.displayId || p.businessId) + ')</p><p><strong>Plan selected:</strong> ' + F.esc(PLAN_LABELS[p.plan] || p.plan) + '</p><p><strong>Submitted amount:</strong> ₹' + Number(p.amount || 0).toFixed(2) + '</p><p><strong>Payment method:</strong> ' + F.esc(p.paymentMethod || p.txnId || 'Legacy request') + '</p><p><strong>Mobile:</strong> ' + F.esc(p.mobile) + '</p><p><strong>Discount:</strong> ' + Number(p.discountPct || 0) + '% (₹' + Number(p.discountAmount || 0).toFixed(2) + ')</p><p style="margin:10px 0">Verify the payment details in the support WhatsApp conversation. The application does not store payment images.</p>' + F.field('Verified payment amount (₹)', 'ftVerifiedAmount','number',p.amount) + '<div class="form-group"><label>Approved subscription duration</label><select id="ftApprovedDays">' + [30,90,182,365].map(function (d) { return '<option value="'+d+'"'+(d===F.daysFor(p.plan)?' selected':'')+'>'+d+' days</option>'; }).join('') + '</select></div>';
     F.el('ftVerifiedAmount').min = '0'; F.el('ftVerifiedAmount').step = '0.01'; F.el('paRejectReasonGroup').style.display = 'block'; F.el('paRejectReason').value = ''; F.el('paRejectBtn').innerText = 'Reject'; F.el('paPaymentModal').style.display = 'flex';
   };
   approvePayment = async function () {
     if (busy || !platformAdminUser || !paCurrentPaymentId) return; var amount = Number(F.el('ftVerifiedAmount').value), days = Number(F.el('ftApprovedDays').value);
     if (F.el('ftVerifiedAmount').value === '' || !Number.isFinite(amount) || amount < 0 || [30,90,182,365].indexOf(days)<0) return alert('Enter a valid verified amount and approved duration.');
     if (!confirm('Approve the verified payment of ₹' + amount.toFixed(2) + ' and add ' + days + ' days?')) return;
-    busy = true; try { await F.commit({paymentId:paCurrentPaymentId,id:'PAY-' + paCurrentPaymentId + '-' + (platformData.payments[paCurrentPaymentId].submittedAt || 0),amount:Math.round(amount*100)/100,days:days}); closePaPaymentModal(); renderPlatformAdminViews(); alert('Payment approved and saved. Subscription extended once and the business administrator notified.'); } catch(e) { F.failure(e); } finally { busy=false; }
+    busy = true; try {
+      var pid = paCurrentPaymentId, bid = (platformData.payments[pid] || {}).businessId;
+      var nid = 'PAY-' + pid + '-' + ((platformData.payments[pid] || {}).submittedAt || 0);
+      await F.commit({paymentId:pid,id:nid,amount:Math.round(amount*100)/100,days:days});
+      closePaPaymentModal(); renderPlatformAdminViews();
+      var wa = F.whatsAppNotice(bid, 'decision_' + nid);
+      alert('Payment approved and saved. Subscription extended once and the business administrator notified.' + (wa ? '\n\nThe same message is open in WhatsApp - tap Send to deliver it to the business administrator.' : '\n\nAllow pop-ups to send the same message to the business administrator on WhatsApp, or use the WhatsApp button beside this business.'));
+    } catch(e) { F.failure(e); } finally { busy=false; }
   };
   rejectPayment = async function () {
     if (busy || !platformAdminUser || !paCurrentPaymentId) return; var reason = F.el('paRejectReason').value.trim(); if (!reason) return alert('Enter the rejection reason.'); busy=true;
-    try { await F.commit({paymentId:paCurrentPaymentId,id:'REJECT-' + paCurrentPaymentId + '-' + (platformData.payments[paCurrentPaymentId].submittedAt || 0),reject:true,reason:reason}); closePaPaymentModal(); renderPlatformAdminViews(); alert('Rejection saved. The business administrator has been notified and can submit a corrected request.'); } catch(e) { F.failure(e); } finally { busy=false; }
+    try {
+      var pid = paCurrentPaymentId, bid = (platformData.payments[pid] || {}).businessId;
+      var nid = 'REJECT-' + pid + '-' + ((platformData.payments[pid] || {}).submittedAt || 0);
+      await F.commit({paymentId:pid,id:nid,reject:true,reason:reason});
+      closePaPaymentModal(); renderPlatformAdminViews();
+      var wa = F.whatsAppNotice(bid, 'decision_' + nid);
+      alert('Rejection saved. The business administrator has been notified and can submit a corrected request.' + (wa ? '\n\nThe same message is open in WhatsApp - tap Send to deliver it to the business administrator.' : '\n\nAllow pop-ups to send the same message to the business administrator on WhatsApp, or use the WhatsApp button beside this business.'));
+    } catch(e) { F.failure(e); } finally { busy=false; }
   };
   window.ftGrantManualSubscription = async function () { if (busy || !platformAdminUser) return; var bid=F.el('ftManualBusiness').value, days=Number(F.el('ftManualDays').value); if (!bid || !confirm('Manually add '+days+' subscription days to this business?')) return; busy=true; try { await F.commit({businessId:bid,days:days,amount:0}); renderPlatformAdminViews(); alert('Manual subscription saved separately from paid subscriptions. The administrator has been notified.'); } catch(e) { F.failure(e); } finally { busy=false; } };
   window.ftSaveReferralSettings = async function () {
@@ -14754,15 +14888,17 @@ if (typeof __ftSwitchTab === 'function') {
   F.renderReferralRecords = function () {
     var host = F.el('ftPlatformReferrals'); if (!host) return;
     var accounts = platformData.referralAccounts || {}, businesses = platformData.businesses || {};
-    var ids = (window.ftBizOrderIds ? ftBizOrderIds(businesses) : Object.keys(businesses)).filter(function (id) { return accounts[id]; });
-    var now = Date.now();
+    /* Every registered business is listed, not only the ones that already hold a
+       referral entry, and every one of them carries the same allowance of three. */
+    var ids = (window.ftBizOrderIds ? ftBizOrderIds(businesses) : Object.keys(businesses));
+    var now = Date.now(), cap = F.referralCapacity;
     var rows = ids.map(function (id) {
       var r = accounts[id] || {}, b = businesses[id] || {}, claim = r.claim || {};
       var done = Object.values(r.referrals || {}).filter(function (x) { return x.success; }).length;
-      var cap = F.limit(b, now), from = claim.businessId ? (businesses[claim.businessId] || {}) : null;
+      var from = claim.businessId ? (businesses[claim.businessId] || {}) : null;
       return '<tr style="border-top:1px solid var(--border)">'
         + F.cell(F.esc(b.name || id) + '<div style="font-size:.68rem;font-family:monospace;color:var(--text-muted)">' + F.esc(b.displayId || id) + '</div>', 'font-weight:700')
-        + F.cell(F.esc(r.code || '-'), 'font-family:monospace')
+        + F.cell(F.esc(r.code || 'not generated yet'), 'font-family:monospace')
         + F.cell(from ? F.esc(from.name || claim.businessId) + '<div style="font-size:.68rem;font-family:monospace;color:var(--text-muted)">' + F.esc(claim.code || '') + '</div>' : 'No referring business linked')
         + F.cell(done + ' / ' + cap, 'font-weight:800')
         + F.cell(String(Math.max(0, cap - done)))
@@ -14771,7 +14907,7 @@ if (typeof __ftSwitchTab === 'function') {
         + '</tr>';
     });
     host.innerHTML = '<p style="font-size:.76rem;color:var(--text-muted);line-height:1.6;margin-bottom:8px">Every business holds one referral ID. A business can count at most ' + F.referralCapacity + ' successful referrals, each earning ' + F.reward() + '% credit for the referring business, so the most any business can earn is ' + F.maxBalance() + '%. The referred business receives the one-time ' + F.firstDiscount + '% discount on its first paid subscription, whichever plan it buys first. "Successful" means the referred business activated a paid subscription while the referring business held an active subscription.</p>'
-      + F.table(['Business','Referral ID','Referred by','Referrals who subscribed','Referrals still available','Earned balance','First-subscription discount'], rows, 'No referral accounts yet.');
+      + F.table(['Business','Referral ID','Referred by','Referrals who subscribed','Referrals still available','Earned balance','First-subscription discount'], rows, 'No businesses registered yet.');
   };
   var __settingsRender = renderPASettings;
   renderPASettings = function () {
@@ -15443,6 +15579,145 @@ if (typeof __ftSwitchTab === 'function') {
   if (platformAdminUser) F.mscCard();
 })();
 
+</script>
+
+<!-- FINTRACK REQUESTED UPDATE 7: searchable service selection, detailed subscription statuses, WhatsApp templates and in-app notifications -->
+<script id="ftRequestedUpdate9">
+(function () {
+  var F = window.FTRequestedUpdate;
+
+  /* ---------- SEARCHABLE SERVICE SELECTION (Records > Customer Service) ---------- */
+  var ftSelectedServiceName = null;
+  window.renderServiceSearchResults = function () {
+    var input = F.el('serviceSearchInput'), list = F.el('serviceSearchResults'), select = F.el('serviceSelect');
+    if (!input || !list || !select) return;
+    if (select.value && input.value !== ftSelectedServiceName) { select.value = ''; ftSelectedServiceName = null; }
+    var q = input.value.trim().toLowerCase();
+    var services = (appData.masterServices || []).slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+    var matches = q ? services.filter(function (s) { return String(s.name).toLowerCase().indexOf(q) === 0; }) : services;
+    list.innerHTML = '';
+    if (!matches.length) {
+      var empty = document.createElement('div');
+      empty.textContent = 'No matching services found';
+      empty.style.cssText = 'padding:10px 12px;font-size:.8rem;color:var(--text-muted)';
+      list.appendChild(empty);
+    } else {
+      matches.forEach(function (s) {
+        var row = document.createElement('button');
+        row.type = 'button';
+        row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;background:var(--card-bg);color:var(--text-main);border:none;padding:9px 12px;cursor:pointer;font-size:.85rem';
+        var name = document.createElement('span'); name.textContent = s.name; name.style.fontWeight = '700';
+        var price = document.createElement('span'); price.textContent = (Number(s.deptFee) > 0 ? 'Dept ₹' + Number(s.deptFee) + ' + ' : '') + '₹' + Number(s.price || 0); price.style.cssText = 'color:var(--text-muted);white-space:nowrap';
+        row.appendChild(name); row.appendChild(price);
+        row.onmousedown = function (e) { e.preventDefault(); window.ftServiceSearchPick(s); };
+        list.appendChild(row);
+      });
+    }
+    list.hidden = !(input === document.activeElement);
+  };
+  window.ftServiceSearchPick = function (s) {
+    var input = F.el('serviceSearchInput'), list = F.el('serviceSearchResults'), select = F.el('serviceSelect');
+    if (!s || !input || !select) return;
+    select.value = s.id;
+    ftSelectedServiceName = s.name;
+    input.value = s.name;
+    if (list) list.hidden = true;
+    if (typeof handleServiceSelectionChange === 'function') handleServiceSelectionChange();
+  };
+  var __searchInput = F.el('serviceSearchInput');
+  if (__searchInput) __searchInput.onblur = function () { setTimeout(function () { var l = F.el('serviceSearchResults'); if (l) l.hidden = true; }, 150); };
+
+  /* ---------- DETAILED SUBSCRIPTION STATUS (Platform Administrator directory) ---------- */
+  var FT_DAY = 86400000, FT_SOON = 7 * FT_DAY;
+  window.ftSubStatusDetail = function (b) {
+    var now = Date.now();
+    var graceDays = (typeof SUB_GRACE_DAYS !== 'undefined') ? SUB_GRACE_DAYS : 3;
+    var base;
+    try { base = getBizSubscriptionStatus(b); } catch (e) { base = 'none'; }
+    if (b && b.blocked) return { key: 'blocked', label: 'Blocked', badge: 'pa-badge-blocked', tpl: null };
+    if (base === 'none') return { key: 'none', label: 'No Subscription', badge: 'pa-badge-none', tpl: null };
+    if (base === 'trial') {
+      var te = 0; try { te = trialEndFor(b) || 0; } catch (e) {}
+      if (te && now > te) return { key: 'expired', label: 'Expired', badge: 'pa-badge-expired', tpl: 'subscriptionExpiredEnded' };
+      if (te && te - now <= FT_SOON) return { key: 'trial_ending', label: 'Trial Ending Soon', badge: 'pa-badge-pending', tpl: 'trialEndingSoon' };
+      return { key: 'trial', label: 'Free Trial', badge: 'pa-badge-trial', tpl: 'freeTrial' };
+    }
+    if (base === 'active') {
+      var expiry = (b && b.subscriptionExpiry) ? Date.parse(String(b.subscriptionExpiry).slice(0, 10) + 'T23:59:59+05:30') : 0;
+      if (!expiry) return { key: 'active', label: 'Subscription Active', badge: 'pa-badge-active', tpl: null };
+      if (now > expiry) {
+        if (now <= expiry + graceDays * FT_DAY) return { key: 'grace', label: 'Grace Period', badge: 'pa-badge-expired', tpl: 'gracePeriod' };
+        return { key: 'ended', label: 'Subscription Ended', badge: 'pa-badge-expired', tpl: 'subscriptionExpiredEnded' };
+      }
+      if (expiry - now <= FT_SOON) return { key: 'ending', label: 'Subscription Ending Soon', badge: 'pa-badge-pending', tpl: 'subscriptionEndingSoon' };
+      return { key: 'active', label: 'Subscription Active', badge: 'pa-badge-active', tpl: null };
+    }
+    if (base === 'expired') {
+      if (b && (b.subscriptionStatus === 'expired' || b.subscriptionStatus === 'active' || b.subscriptionStatus === 'grace')) return { key: 'ended', label: 'Subscription Ended', badge: 'pa-badge-expired', tpl: 'subscriptionExpiredEnded' };
+      return { key: 'expired', label: 'Expired', badge: 'pa-badge-expired', tpl: 'subscriptionExpiredEnded' };
+    }
+    return { key: 'none', label: 'No Subscription', badge: 'pa-badge-none', tpl: null };
+  };
+  window.ftSubStatusBadge = function (b) {
+    var d = window.ftSubStatusDetail(b || {});
+    return '<span class="pa-badge ' + d.badge + '">' + F.esc(d.label) + '</span>';
+  };
+
+  /* ---------- WHATSAPP MESSAGE TEMPLATES (Platform Administrator settings) ---------- */
+  var WA_DEFAULTS = {
+    freeTrial: 'Hello! We are from FinTrack Business. Welcome aboard! Your free trial is active. Enjoy managing your business smoothly with FinTrack Business. We look forward to serving you!',
+    trialEndingSoon: 'Hello! We are from FinTrack Business. Your free trial is ending soon. Kindly subscribe to continue managing your business smoothly with FinTrack Business. We look forward to serving you!',
+    subscriptionEndingSoon: 'Hello! We are from FinTrack Business. Your subscription is ending soon. Kindly renew your subscription to continue managing your business smoothly with FinTrack Business. We look forward to serving you!',
+    subscriptionExpiredEnded: 'Hello! We are from FinTrack Business. Your subscription has ended. Kindly renew your subscription to continue managing your business smoothly with FinTrack Business. We look forward to serving you!',
+    gracePeriod: 'Hello! We are from FinTrack Business. Your subscription has ended and your account is in the grace period. Kindly renew your subscription now to continue managing your business smoothly with FinTrack Business. We look forward to serving you!',
+    active: 'Hello! We are from FinTrack Business. Your subscription is active. Thank you for managing your business with FinTrack Business. We look forward to serving you!'
+  };
+  window.ftWaTemplate = function (key) {
+    var text = key ? String((platformData.whatsappTemplates || {})[key] || '').trim() : '';
+    if (text) return text;
+    return WA_DEFAULTS[key] || WA_DEFAULTS.active;
+  };
+  window.ftRenderWaTemplates = function () {
+    ['freeTrial','trialEndingSoon','subscriptionEndingSoon','subscriptionExpiredEnded','gracePeriod'].forEach(function (key) {
+      var el = F.el('paWaTpl_' + key); if (!el) return;
+      el.value = window.ftWaTemplate(key);
+    });
+  };
+  window.saveWhatsAppTemplate = function (key) {
+    if (!platformAdminUser) return alert('Only the Platform Administrator can save WhatsApp message templates.');
+    var el = F.el('paWaTpl_' + key); if (!el) return;
+    if (!platformData.whatsappTemplates) platformData.whatsappTemplates = {};
+    platformData.whatsappTemplates[key] = el.value;
+    savePlatformData();
+    alert('WhatsApp message template saved. It opens automatically when you tap the WhatsApp icon beside that business\u2019s subscription status.');
+  };
+  var __priorSettings = renderPASettings;
+  renderPASettings = window.renderPASettings = function () {
+    __priorSettings.apply(this, arguments);
+    try { window.ftRenderWaTemplates(); } catch (e) {}
+  };
+
+  /* ---------- WHATSAPP TO A BUSINESS + IN-APP NOTIFICATION ---------- */
+  window.ftBizWhatsApp = function (bizId) {
+    var b = Object.assign({ id: bizId }, (platformData.businesses || {})[bizId] || {});
+    var detail = window.ftSubStatusDetail(b);
+    var msg = window.ftWaTemplate(detail.tpl);
+    var number = String(b.adminContact || '').replace(/\D/g, '');
+    if (number.length === 10) number = '91' + number;
+    else if (number.length === 11 && number.charAt(0) === '0') number = '91' + number.slice(1);
+    if (!number) return alert('This business administrator has no registered mobile number, so WhatsApp cannot be opened.');
+    var notifId = 'WAMSG-' + Date.now().toString(36);
+    if (!platformData.notifications) platformData.notifications = {};
+    platformData.notifications[notifId] = { type: 'individual', businessId: bizId, subject: 'Message from Platform Administrator', message: msg, sentAt: Date.now(), sentBy: platformAdminUser ? platformAdminUser.name : 'Platform Admin', readBy: {}, publishDate: '', expiryDate: '', totalTargets: 1 };
+    savePlatformData();
+    ftDeliverToBusiness(bizId, { id: 'wa_' + notifId, subject: 'Message from Platform Administrator', message: msg, senderName: 'Platform Administrator', senderRole: 'Platform Administrator', audience: 'admin', sentAt: Date.now() }).catch(function () {});
+    try { renderPANotifications(); } catch (e) {}
+    var url = 'https://wa.me/' + number + '?text=' + encodeURIComponent(msg);
+    var opened = null; try { opened = window.open(url, '_blank'); } catch (e) { opened = null; }
+    if (!opened) { try { window.location.href = url; } catch (e) {} }
+    alert('WhatsApp is opening with the message ready for this business administrator\u2019s registered mobile number \u2014 you must tap Send in WhatsApp.\n\nAn in-app notification was also recorded for this business administrator.');
+  };
+})();
 </script>
 <!-- END FINTRACK REQUESTED SUBSCRIPTION / PAYMENT / REFERRAL UPDATE -->
 </body>
